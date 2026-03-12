@@ -8,7 +8,6 @@ class User(Base):
     __tablename__ = "users"
     id = Column("id", Integer, primary_key=True, index=True)
     email = Column("email", String(50), unique=True, nullable=False)
-    city = Column(Text)
     phone = Column("phone", String(20), nullable=False)
     hashed_password = Column("hashed_password", String(128), nullable=False)
     role = Column("role", String(50), default = "user", nullable=False)

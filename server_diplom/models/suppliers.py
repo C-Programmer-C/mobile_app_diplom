@@ -13,4 +13,5 @@ class Supplier(Base):
     email = Column(Text)
     address = Column(Text)
     rating = Column(Numeric(5, 2), nullable=False, default=0)
+    total_products = Column(Integer, nullable=False, default=0)
     products = relationship("Product", back_populates="supplier")
