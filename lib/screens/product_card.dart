@@ -144,9 +144,7 @@ class _ProductCardState extends State<ProductCard>
                             _isFavorite = !_isFavorite;
                           });
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(_friendlyError(e)),
-                            ),
+                            SnackBar(content: Text(_friendlyError(e))),
                           );
                         }
                       },
@@ -296,9 +294,7 @@ class _ProductCardState extends State<ProductCard>
                                 } catch (e) {
                                   if (!context.mounted) return;
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(_friendlyError(e)),
-                                    ),
+                                    SnackBar(content: Text(_friendlyError(e))),
                                   );
                                 }
                               },
