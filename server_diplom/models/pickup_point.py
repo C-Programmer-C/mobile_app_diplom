@@ -11,4 +11,6 @@ class PickupPoint(Base):
     name = Column("name", String(100), nullable=False, index=True, unique=True)
     address = Column(Text)
     working_hours = Column(Text)            
-    orders = relationship("Order", back_populates="pickup_points")
+    estimated_days = Column(Integer, nullable=False)
+    city = relationship("City", back_populates="pickup_points")
+    orders = relationship("Order", back_populates="pickup_point")

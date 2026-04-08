@@ -1,16 +1,24 @@
 from logging.config import fileConfig
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-from models.review import Reviews
-from models.cart import Cart
-from models.suppliers import Supplier
-from models.user import User
-from models.favorites import Favorites
-from models.product import Product
-from models.category import Category
+
+from sqlalchemy import engine_from_config, pool
+
 from alembic import context
-from database.base import Base
 from config import settings
+from database.base import Base
+from models.brands import Brand
+from models.cart import Cart
+from models.category import Category
+from models.city import City
+from models.delivery_type import DeliveryType
+from models.favorites import Favorites
+from models.order import Order
+from models.order_item import OrderItem
+from models.pickup_point import PickupPoint
+from models.product import Product
+from models.product_images import ProductImages
+from models.review import Reviews
+from models.statuses import OrderStatusEnum, Status
+from models.user import User
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -68,13 +76,11 @@ def run_migrations_online() -> None:
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
-        url=settings.DATABASE_URL
+        url=settings.DATABASE_URL,
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

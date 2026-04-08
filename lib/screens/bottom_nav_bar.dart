@@ -23,6 +23,7 @@ class CustomBottomNavBar extends StatelessWidget {
     ),
     child: BottomNavigationBar(
       type: BottomNavigationBarType.fixed,
+      selectedItemColor: Colors.red,
       currentIndex: currentIndex,
       onTap: onTap,
       selectedLabelStyle: const TextStyle(

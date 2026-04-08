@@ -1,7 +1,14 @@
-from fastapi import APIRouter, HTTPException, Response, Header, status
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Response, Header, status
 from pydantic import BaseModel
 from pydantic.networks import EmailStr
-from database.auth import authenticate_user, create_user, get_user_by_email
+from database.auth import (
+    authenticate_user,
+    create_user,
+    get_user_by_email,
+    update_user_profile,
+)
 from utils.auth import (
     create_access_token,
     decode_access_token,
@@ -118,4 +125,42 @@ def get_current_user_email(authorization: str | None = Header(default=None)) -> 
         ) from exc
 
     return email
+
+
+class UpdateMeRequest(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+
+
+@auth_router.get("/me", summary="Текущий пользователь")
+def read_me(email: str = Depends(get_current_user_email)):
+    user = get_user_by_email(email)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not found")
+    return {
+        "id": user.id,
+        "email": user.email,
+        "name": user.name,
+        "phone": user.phone or "",
+    }
+
+
+@auth_router.patch("/me", summary="Обновить профиль")
+def patch_me(
+    data: UpdateMeRequest,
+    email: str = Depends(get_current_user_email),
+):
+    user = update_user_profile(
+        email,
+        name=data.name,
+        phone=data.phone,
+    )
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not found")
+    return {
+        "id": user.id,
+        "email": user.email,
+        "name": user.name,
+        "phone": user.phone or "",
+    }
 

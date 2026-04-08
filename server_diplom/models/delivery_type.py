@@ -8,4 +8,4 @@ class DeliveryType(Base):
     __tablename__ = "delivery_types"
     id = Column("id", Integer, primary_key=True, index=True)
     name = Column("name", String(100), nullable=False, index=True, unique=True)
-    products = relationship("Order", back_populates="delivery_types")
+    orders = relationship("Order", back_populates="delivery_type")

@@ -8,4 +8,5 @@ class City(Base):
     __tablename__ = "cities"
     id = Column("id", Integer, primary_key=True, index=True)
     name = Column("name", Text, nullable=False, index=True, unique=True)
-    products = relationship("Product", back_populates="category")
+    pickup_points = relationship("PickupPoint", back_populates="city")
+    orders = relationship("Order", back_populates="city")

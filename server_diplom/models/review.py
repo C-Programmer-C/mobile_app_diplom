@@ -11,5 +11,5 @@ class Reviews(Base):
     user = relationship("User", back_populates="reviews")
     product = relationship("Product", back_populates="reviews")
     comment = Column(Text)
-    rating = Column(Numeric(2, 1), nullable=False)
+    rating = Column(Integer, nullable=False)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)

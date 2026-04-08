@@ -1,9 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/screens/about_screen.dart';
+import 'package:mobile_app/screens/help_screen.dart';
 import 'package:mobile_app/screens/login.dart';
+import 'package:mobile_app/screens/my_orders.dart';
+import 'package:mobile_app/screens/personal_info_screen.dart';
+import 'package:mobile_app/screens/settings_screen.dart';
+import 'package:mobile_app/screens/store_addresses_screen.dart';
+import 'package:mobile_app/services/app_settings.dart';
 import 'package:mobile_app/services/auth_service.dart';
+import 'package:mobile_app/services/cart_sync.dart';
 
 class ProfilePlaceholderScreen extends StatefulWidget {
-  const ProfilePlaceholderScreen({super.key});
+  final AppSettingsController appSettings;
+
+  const ProfilePlaceholderScreen({super.key, required this.appSettings});
 
   @override
   State<ProfilePlaceholderScreen> createState() =>
@@ -33,6 +43,7 @@ class _ProfilePlaceholderScreenState extends State<ProfilePlaceholderScreen> {
             ),
           const SizedBox(height: 16),
           _ProfileMenu(
+            appSettings: widget.appSettings,
             onLogout: () {
               setState(() {});
             },
@@ -166,8 +177,9 @@ class _WelcomeCard extends StatelessWidget {
 
 class _ProfileMenu extends StatelessWidget {
   final VoidCallback? onLogout;
+  final AppSettingsController appSettings;
 
-  const _ProfileMenu({this.onLogout});
+  const _ProfileMenu({this.onLogout, required this.appSettings});
 
   @override
   Widget build(BuildContext context) {
@@ -180,34 +192,75 @@ class _ProfileMenu extends StatelessWidget {
       elevation: 1,
       child: Column(
         children: [
-          const _MenuItem(
-            icon: Icons.card_giftcard,
-            title: 'Мои промокоды',
-          ),
           const Divider(height: 1),
-          const _MenuItem(
+          _MenuItem(
             icon: Icons.store_mall_directory,
             title: 'Адреса магазинов',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const StoreAddressesScreen(),
+                ),
+              );
+            },
           ),
           const Divider(height: 1),
-          const _MenuItem(
-            icon: Icons.location_city,
-            title: 'Выбор города',
-          ),
-          const Divider(height: 1),
-          const _MenuItem(
+          _MenuItem(
             icon: Icons.help_outline,
             title: 'Помощь',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const HelpScreen()),
+              );
+            },
           ),
           const Divider(height: 1),
-          const _MenuItem(
+          _MenuItem(
             icon: Icons.info_outline,
             title: 'О приложении',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const AboutScreen()),
+              );
+            },
           ),
+          if (isLoggedIn) const Divider(height: 1),
+          if (isLoggedIn)
+            _MenuItem(
+              icon: Icons.badge_outlined,
+              title: 'Личная информация',
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const PersonalInfoScreen(),
+                  ),
+                );
+              },
+            ),
+          if (isLoggedIn) const Divider(height: 1),
+          if (isLoggedIn)
+            _MenuItem(
+              icon: Icons.shopping_bag_outlined,
+              title: 'Заказы',
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const MyOrdersScreen(),
+                  ),
+                );
+              },
+            ),
           const Divider(height: 1),
-          const _MenuItem(
+          _MenuItem(
             icon: Icons.settings,
             title: 'Настройки',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => SettingsScreen(settings: appSettings),
+                ),
+              );
+            },
           ),
           if (isLoggedIn) const Divider(height: 1),
           if (isLoggedIn)
@@ -217,6 +270,7 @@ class _ProfileMenu extends StatelessWidget {
               isDestructive: true,
               onTap: () async {
                 await AuthService.clearTokens();
+                CartSync.notifyChanged();
                 // ignore: use_build_context_synchronously
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Вы вышли из профиля')),

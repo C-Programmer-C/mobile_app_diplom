@@ -11,4 +11,4 @@ class ProductImages(Base):
     name = Column("name", String(100), nullable=False, index=True, unique=True)
     image_url = Column(Text)
     is_main = Column(Boolean, default=False)      
-    products = relationship("Product", back_populates="product_images")
+    product = relationship("Product", back_populates="product_images")

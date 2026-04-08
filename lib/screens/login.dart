@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile_app/api.dart';
 import 'package:mobile_app/screens/register.dart';
 import 'package:mobile_app/services/auth_service.dart';
+import 'package:mobile_app/utils/error_message.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -46,7 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
+        SnackBar(content: Text(toUserMessage(e))),
       );
     } finally {
       if (mounted) {
@@ -57,17 +58,19 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _openRegister() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const RegisterScreen(),
-      ),
-    );
+void _openRegister() {
+    Navigator.of(context)
+        .push<bool>(MaterialPageRoute(builder: (_) => const RegisterScreen()))
+        .then((registered) {
+          if (registered == true && mounted) {
+            Navigator.of(context).pop(true);
+          }
+        });
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Вход'),
       ),

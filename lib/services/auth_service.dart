@@ -38,5 +38,11 @@ class AuthService {
     currentUserName = null;
     ApiService.setTokens(accessToken: null);
   }
+
+  static Future<void> setUserName(String name) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_userNameKey, name);
+    currentUserName = name;
+  }
 }
 

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_app/api.dart';
 import 'package:mobile_app/services/auth_service.dart';
+import 'package:mobile_app/utils/error_message.dart';
+import 'package:mobile_app/utils/ru_phone_input_formatter.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -14,6 +16,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
   bool _isLoading = false;
 
   @override
@@ -21,6 +24,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _nameController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -32,10 +36,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
+      final phone = _phoneController.text.trim();
       await ApiService.register(
         email: _emailController.text.trim(),
         password: _passwordController.text,
         name: _nameController.text.trim(),
+        phone: phone.isEmpty ? null : phone,
       );
 
       // После успешной регистрации сразу выполняем вход
@@ -53,12 +59,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Регистрация прошла успешно')),
       );
-      // Возвращаемся на главный экран (профиль во вкладке уже открыт)
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
+        SnackBar(content: Text(toUserMessage(e))),
       );
     } finally {
       if (mounted) {
@@ -72,6 +77,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Регистрация'),
       ),
@@ -107,6 +113,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   }
                   if (!value.contains('@')) {
                     return 'Некорректный email';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                inputFormatters: [RuPhoneInputFormatter()],
+                decoration: const InputDecoration(
+                  labelText: 'Телефон (необязательно)',
+                ),
+                validator: (value) {
+                  final v = value?.trim() ?? '';
+                  if (v.isEmpty) return null;
+                  if (!RuPhoneInputFormatter.isComplete(v)) {
+                    return 'Некорректный номер телефона';
                   }
                   return null;
                 },
