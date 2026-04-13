@@ -12,7 +12,7 @@ class AuthTokens {
 }
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.1.25:8000';
+  static const String baseUrl = 'https://cheekily-coherent-newfoundland.cloudpub.ru:8000';
 
   static String? _accessToken;
 

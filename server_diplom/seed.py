@@ -55,7 +55,7 @@ def seed_statuses() -> list[Status]:
 
 def seed_delivery_types() -> list[DeliveryType]:
     items = [
-        DeliveryType(name="Адрес"),
+        DeliveryType(name="Курьер"),
         DeliveryType(name="Самовывоз из пункта выдачи"),
     ]
     session.add_all(items)
