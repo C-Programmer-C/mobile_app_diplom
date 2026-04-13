@@ -63,6 +63,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
+    var leftByPop = false;
     try {
       await ApiService.updateCurrentUser(
         name: _nameCtrl.text.trim(),
@@ -70,16 +71,15 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
       );
       await AuthService.setUserName(_nameCtrl.text.trim());
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Сохранено')),
-      );
+      leftByPop = true;
+      Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(toUserMessage(e))),
       );
     } finally {
-      if (mounted) setState(() => _saving = false);
+      if (mounted && !leftByPop) setState(() => _saving = false);
     }
   }
 
@@ -141,7 +141,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
             const SizedBox(height: 8),
             const Text(
               'Email меняется только через поддержку',
-              style: TextStyle(fontSize: 12, color: Colors.black45),
+              style: TextStyle(fontSize: 12, color: Colors.black),
             ),
             const SizedBox(height: 16),
             TextFormField(

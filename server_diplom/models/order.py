@@ -1,4 +1,4 @@
-from sqlalchemy import Column, ForeignKey, Integer, Text, Numeric, DateTime
+from sqlalchemy import Column, ForeignKey, Integer, String, Text, Numeric, DateTime
 from sqlalchemy.sql import func
 from database.base import Base
 from sqlalchemy.orm import relationship
@@ -19,8 +19,12 @@ class Order(Base):
     delivery_comment = Column(Text, nullable=True)
     created_at = Column(DateTime, nullable=False, server_default=func.now())
     processed_at = Column(DateTime)
+    canceled_at = Column(DateTime)
     shipped_at = Column(DateTime)
     delivered_at = Column(DateTime)
+    payment_status = Column(String, nullable=False, default="pending")
+    paid_at = Column(DateTime, nullable=True)
+    payment_method = Column(String, nullable=True)
     user = relationship("User", back_populates="orders")
     status = relationship("Status", back_populates="orders")
     delivery_type = relationship("DeliveryType", back_populates="orders")

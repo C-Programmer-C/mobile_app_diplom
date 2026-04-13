@@ -22,6 +22,7 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
     name: str
+    phone: Optional[str] = None
 
 
 class LoginRequest(BaseModel):
@@ -35,7 +36,12 @@ class RefreshRequest(BaseModel):
 
 @auth_router.post("/register", summary="Create a new user")
 def register(data: RegisterRequest):
-    is_exist = create_user(data.email, data.password, data.name)
+    is_exist = create_user(
+        data.email,
+        data.password,
+        data.name,
+        phone=data.phone,
+    )
     if not is_exist:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="The user already exists"

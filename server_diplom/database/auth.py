@@ -1,5 +1,5 @@
 import bcrypt
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from config import settings
 from database.base import Base
 from models.brands import Brand
@@ -16,7 +16,7 @@ from models.product_images import ProductImages
 from models.review import Reviews
 from models.statuses import OrderStatusEnum, Status
 from models.user import User
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select, update
 from sqlalchemy.orm import sessionmaker
 
 engine = create_engine(settings.DATABASE_URL)
@@ -62,14 +62,22 @@ def verify_password(plain_password: str, hashed: str) -> bool:
     )
 
 
-def create_user(email: str, password: str, name: str):
+def create_user(
+    email: str, password: str, name: str, phone: str | None = None
+):
     """Create user in database with check existing user"""
     hashed_password = hash_password(password)
+    phone_clean = (phone or "").strip()
     with Session(autoflush=False, bind=engine) as db:
         existing_user = db.query(User).filter(User.email == email).first()
         if existing_user:
             return False
-        new_user = User(name=name, email=email, hashed_password=hashed_password)
+        new_user = User(
+            name=name,
+            email=email,
+            hashed_password=hashed_password,
+            phone=phone_clean if phone_clean else "",
+        )
         db.add(new_user)
         db.commit()
         return True
@@ -150,6 +158,9 @@ def get_all_products():
                     "image_url": main_img.image_url if main_img else "",
                     "count_feedbacks": p.reviews_count,
                     "evaluation": float(p.rating),
+                    "quantity": p.quantity,
+                    "is_new": p.is_new,
+                    "is_popular": p.is_popular,
                 }
             )
         return result
@@ -361,6 +372,9 @@ def get_similar_products(product_id: int, limit: int = 4):
                     "image_url": main_img.image_url if main_img else "",
                     "count_feedbacks": product.reviews_count,
                     "evaluation": float(product.rating),
+                    "quantity": product.quantity,
+                    "is_new": product.is_new,
+                    "is_popular": product.is_popular,
                 }
             )
 
@@ -403,6 +417,9 @@ def search_products(query: str):
                     "image_url": main_img.image_url if main_img else "",
                     "count_feedbacks": p.reviews_count,
                     "evaluation": float(p.rating),
+                    "is_popular": p.is_popular,
+                    "is_new": p.is_new,
+                    "quantity": p.quantity,
                 }
             )
         return result
@@ -440,7 +457,7 @@ def filter_products(
         if high_rating:
             query = query.filter(Product.rating >= 4.0)
         if big_discount:
-            query = query.filter(Product.discount > 30.0)
+            query = query.filter(Product.discount >= 30.0)
         if is_new:
             query = query.filter(Product.is_new == True)  # noqa: E712
         if category_id:
@@ -486,6 +503,9 @@ def filter_products(
                     "image_url": main_img.image_url if main_img else "",
                     "count_feedbacks": p.reviews_count,
                     "evaluation": float(p.rating),
+                    "quantity": p.quantity,
+                    "is_new": p.is_new,
+                    "is_popular": p.is_popular,
                 }
             )
         return result
@@ -498,11 +518,16 @@ def add_product_to_cart_for_user(
         raise ValueError("quantity must be > 0")
 
     with Session(autoflush=False, bind=engine) as db:
-        product = db.query(Product).filter(Product.id == product_id).first()
+        product = (
+            db.query(Product)
+            .filter(Product.id == product_id)
+            .with_for_update()
+            .first()
+        )
         if not product:
             raise ValueError("product not found")
         if product.quantity <= 0:
-            raise ValueError("product is out of stock")
+            raise ValueError("Товар закончился на складе, его нельзя добавить в корзину.")
 
         cart_row = (
             db.query(Cart)
@@ -512,7 +537,7 @@ def add_product_to_cart_for_user(
 
         new_quantity = quantity + (cart_row.quantity if cart_row else 0)
         if new_quantity > product.quantity:
-            raise ValueError("requested quantity exceeds stock")
+            raise ValueError("Произошла ошибка при увеличении количества товара в корзине. Запрошенное количество превышает доступный запас.")
 
         if not cart_row:
             cart_row = Cart(user_id=user.id, product_id=product_id, quantity=quantity)
@@ -527,15 +552,20 @@ def add_product_to_cart_for_user(
 
 def set_cart_item_quantity_for_user(user: User, product_id: int, quantity: int) -> Cart:
     if quantity <= 0:
-        raise ValueError("quantity must be > 0")
+        raise ValueError("Количество должно быть больше нуля.")
     with Session(autoflush=False, bind=engine) as db:
-        product = db.query(Product).filter(Product.id == product_id).first()
+        product = (
+            db.query(Product)
+            .filter(Product.id == product_id)
+            .with_for_update()
+            .first()
+        )
         if not product:
             raise ValueError("product not found")
         if product.quantity <= 0:
-            raise ValueError("product is out of stock")
+            raise ValueError("Товар закончился на складе, его нельзя добавить в корзину.")
         if quantity > product.quantity:
-            raise ValueError("requested quantity exceeds stock")
+            raise ValueError("Произошла ошибка при изменении количества товара в корзине. Запрошенное количество превышает доступный запас.")
 
         cart_row = (
             db.query(Cart)
@@ -579,6 +609,20 @@ def _get_or_create_status(db, name: OrderStatusEnum) -> Status:
     return status
 
 
+def _order_checkout_payload(order: Order) -> dict:
+    return {
+        "id": order.id,
+        "status_id": order.status_id,
+        "total_amount": float(order.total_amount),
+        "created_at": order.created_at,
+        "delivery_at": order.delivery_at,
+        "delivery_comment": order.delivery_comment,
+        "payment_status": order.payment_status,
+        "payment_method": order.payment_method,
+        "paid_at": order.paid_at,
+    }
+
+
 def create_order_from_cart(
     user: User,
     delivery_type_id: int,
@@ -587,7 +631,11 @@ def create_order_from_cart(
     phone: str,
     pickup_point_id: int | None = None,
     product_ids: list[int] | None = None,
-) -> Order:
+    *,
+    payment_method: str,
+    payment_status: str,
+    paid_at: datetime | None,
+) -> dict:
     with Session(autoflush=False, bind=engine) as db:
         delivery_type = (
             db.query(DeliveryType).filter(DeliveryType.id == delivery_type_id).first()
@@ -660,6 +708,9 @@ def create_order_from_cart(
             total_amount=0,
             delivery_at=None,
             delivery_comment=delivery_comment,
+            payment_method=payment_method,
+            payment_status=payment_status,
+            paid_at=paid_at,
         )
         db.add(order)
         db.flush()  # get order.id
@@ -667,40 +718,62 @@ def create_order_from_cart(
             order.delivery_at = order.created_at + timedelta(days=estimated_days)
 
         total = 0
-        for cart_row in cart_items:
-            product = (
-                db.query(Product).filter(Product.id == cart_row.product_id).first()
-            )
-            if not product:
+        sorted_cart = sorted(cart_items, key=lambda r: r.product_id)
+        for cart_row in sorted_cart:
+            price_row = db.execute(
+                select(Product.price).where(Product.id == cart_row.product_id)
+            ).first()
+            if not price_row:
+                db.rollback()
                 raise ValueError(f"product {cart_row.product_id} not found")
-            if product.quantity < cart_row.quantity:
-                raise ValueError(f"insufficient stock for product {product.id}")
 
-            product.quantity -= cart_row.quantity
-            line_total = float(product.price) * cart_row.quantity
+            price = price_row[0]
+            res = db.execute(
+                update(Product)
+                .where(
+                    Product.id == cart_row.product_id,
+                    Product.quantity >= cart_row.quantity,
+                )
+                .values(quantity=Product.quantity - cart_row.quantity)
+            )
+            if res.rowcount != 1:
+                db.rollback()
+                raise ValueError(
+                    f"insufficient stock for product {cart_row.product_id}"
+                )
+
+            line_total = float(price) * cart_row.quantity
             total += line_total
 
             db.add(
                 OrderItem(
                     order_id=order.id,
-                    product_id=product.id,
+                    product_id=cart_row.product_id,
                     quantity=cart_row.quantity,
-                    price=product.price,
+                    price=price,
                 )
             )
 
         order.total_amount = total
 
-        # clear cart
         for row in cart_items:
             db.delete(row)
 
         db.commit()
         db.refresh(order)
-        return order
+        return _order_checkout_payload(order)
 
 
-def cancel_order_for_user(user: User, order_id: int) -> Order:
+def _as_utc_aware(dt: datetime | None) -> datetime | None:
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def cancel_order_for_user(user: User, order_id: int) -> dict:
+    """Возвращает dict, пока сессия открыта — нельзя отдавать ORM Order после выхода из `with`."""
     with Session(autoflush=False, bind=engine) as db:
         order = db.query(Order).filter(Order.id == order_id).first()
         if not order:
@@ -710,9 +783,24 @@ def cancel_order_for_user(user: User, order_id: int) -> Order:
 
         canceled = _get_or_create_status(db, OrderStatusEnum.canceled)
         if order.status_id == canceled.id:
-            return order
+            return {
+                "id": order.id,
+                "status_id": order.status_id,
+                "status": OrderStatusEnum.canceled.value,
+                "canceled_at": (
+                    order.canceled_at.isoformat() if order.canceled_at else None
+                ),
+            }
 
-        # Restock items (best-effort)
+        created = _as_utc_aware(order.created_at)
+        if created is None:
+            raise ValueError("invalid order")
+        now = datetime.now(timezone.utc)
+        if now - created > timedelta(minutes=15):
+            raise ValueError(
+                "Прошло более 15 минут с момента оформления заказа, отмена невозможна"
+            )
+
         items = db.query(OrderItem).filter(OrderItem.order_id == order.id).all()
         for it in items:
             product = db.query(Product).filter(Product.id == it.product_id).first()
@@ -720,10 +808,17 @@ def cancel_order_for_user(user: User, order_id: int) -> Order:
                 product.quantity += it.quantity
 
         order.status_id = canceled.id
+        order.canceled_at = now.replace(tzinfo=None)
         db.commit()
         db.refresh(order)
-        return order
-        return order
+        return {
+            "id": order.id,
+            "status_id": order.status_id,
+            "status": OrderStatusEnum.canceled.value,
+            "canceled_at": (
+                order.canceled_at.isoformat() if order.canceled_at else None
+            ),
+        }
 
 
 def get_delivery_types() -> list[dict]:
@@ -806,6 +901,14 @@ def get_orders_for_user(user: User) -> list[dict]:
                         order.delivery_at.isoformat() if order.delivery_at else None
                     ),
                     "delivery_comment": order.delivery_comment,
+                    "canceled_at": (
+                        order.canceled_at.isoformat() if order.canceled_at else None
+                    ),
+                    "payment_status": order.payment_status,
+                    "payment_method": order.payment_method,
+                    "paid_at": (
+                        order.paid_at.isoformat() if order.paid_at else None
+                    ),
                 }
             )
         return result
@@ -852,6 +955,12 @@ def get_order_detail_for_user(user: User, order_id: int) -> dict:
             "created_at": order.created_at.isoformat() if order.created_at else None,
             "delivery_at": order.delivery_at.isoformat() if order.delivery_at else None,
             "delivery_comment": order.delivery_comment,
+            "canceled_at": (
+                order.canceled_at.isoformat() if order.canceled_at else None
+            ),
+            "payment_status": order.payment_status,
+            "payment_method": order.payment_method,
+            "paid_at": order.paid_at.isoformat() if order.paid_at else None,
             "items": items,
         }
 

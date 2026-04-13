@@ -1,39 +1,122 @@
 import 'package:flutter/material.dart';
 
+
+
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(title: const Text('О приложении')),
-      body: const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
+      backgroundColor: Colors.grey[50],
+      appBar: AppBar(
+        title: const Text('О приложении'),
+        centerTitle: true,
+      ),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.shopping_bag_outlined, size: 64, color: Colors.red),
-              SizedBox(height: 20),
-              Text(
-                'Mobile Shop',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+              // Логотип
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  heightFactor: 0.75,
+                child: Image.asset(
+                  'assets/splash.png',
+                  width: 300,
+                  height: 300,
+                  fit: BoxFit.cover,
+                ),
               ),
-              SizedBox(height: 8),
-              Text(
+              ),
+              // Версия
+              const Text(
                 'Версия 1.0.0',
-                style: TextStyle(fontSize: 15, color: Colors.black54),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.black54,
+                ),
               ),
-              SizedBox(height: 24),
-              Text(
-                'Дипломный проект: каталог товаров, корзина, заказы, отзывы.',
+
+              const SizedBox(height: 24),
+
+              // Слоган (карточка)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  // ignore: deprecated_member_use
+                  color: const Color.fromARGB(255, 155, 151, 150).withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Text(
+                  'Лучшие технологии по доступной цене',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Описание
+              const Text(
+                'ЭлектроМир — это удобный сервис для покупки электроники: '
+                'каталог товаров, быстрый заказ и отслеживание доставки.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 15, height: 1.4),
+                style: TextStyle(
+                  fontSize: 15,
+                  height: 1.5,
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Преимущества
+              _feature(Icons.shopping_cart_outlined, 'Быстрый заказ'),
+              _feature(Icons.local_shipping_outlined, 'Доставка до двери'),
+              _feature(Icons.star_border, 'Отзывы и рейтинг'),
+              _feature(Icons.payment_outlined, 'Удобная оплата'),
+
+              const SizedBox(height: 30),
+
+              // Разделитель
+              Divider(),
+
+              const SizedBox(height: 10),
+
+              // Копирайт
+              const Text(
+                '© 2026 ЭлектроМир',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.black45,
+                ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  static Widget _feature(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 20, color: Colors.red),
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: const TextStyle(fontSize: 15),
+          ),
+        ],
       ),
     );
   }

@@ -4,6 +4,7 @@ import 'package:mobile_app/models/cart_item.dart';
 import 'package:mobile_app/models/product.dart';
 import 'package:mobile_app/screens/checkout.dart';
 import 'package:mobile_app/screens/login.dart';
+import 'package:mobile_app/services/auth_service.dart';
 import 'package:mobile_app/services/cart_sync.dart';
 import 'package:mobile_app/widgets/server_error_view.dart';
 
@@ -18,6 +19,7 @@ class _CartScreenState extends State<CartScreen> {
   late Future<List<_CartEntry>> _future;
   bool _isMutating = false;
   late VoidCallback _cartSyncListener;
+  late VoidCallback _sessionListener;
 
   @override
   void initState() {
@@ -29,6 +31,13 @@ class _CartScreenState extends State<CartScreen> {
       _refresh();
     };
     CartSync.listenable.addListener(_cartSyncListener);
+    _sessionListener = () {
+      if (!mounted) return;
+      if (!ApiService.isAuthorized) return;
+      if (_isMutating) return;
+      _refresh();
+    };
+    AuthService.sessionEpoch.addListener(_sessionListener);
   }
 
   Future<List<_CartEntry>> _load() async {
@@ -74,6 +83,7 @@ class _CartScreenState extends State<CartScreen> {
 
   @override
   void dispose() {
+    AuthService.sessionEpoch.removeListener(_sessionListener);
     CartSync.listenable.removeListener(_cartSyncListener);
     super.dispose();
   }

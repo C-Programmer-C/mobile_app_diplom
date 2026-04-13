@@ -47,6 +47,9 @@ class _ProfilePlaceholderScreenState extends State<ProfilePlaceholderScreen> {
             onLogout: () {
               setState(() {});
             },
+            onUserDataChanged: () {
+              setState(() {});
+            },
           ),
         ],
       ),
@@ -177,9 +180,14 @@ class _WelcomeCard extends StatelessWidget {
 
 class _ProfileMenu extends StatelessWidget {
   final VoidCallback? onLogout;
+  final VoidCallback? onUserDataChanged;
   final AppSettingsController appSettings;
 
-  const _ProfileMenu({this.onLogout, required this.appSettings});
+  const _ProfileMenu({
+    this.onLogout,
+    this.onUserDataChanged,
+    required this.appSettings,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -229,12 +237,19 @@ class _ProfileMenu extends StatelessWidget {
             _MenuItem(
               icon: Icons.badge_outlined,
               title: 'Личная информация',
-              onTap: () {
-                Navigator.of(context).push(
+              onTap: () async {
+                final saved = await Navigator.of(context).push<bool>(
                   MaterialPageRoute(
                     builder: (_) => const PersonalInfoScreen(),
                   ),
                 );
+                if (!context.mounted) return;
+                if (saved == true) {
+                  onUserDataChanged?.call();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Сохранено')),
+                  );
+                }
               },
             ),
           if (isLoggedIn) const Divider(height: 1),

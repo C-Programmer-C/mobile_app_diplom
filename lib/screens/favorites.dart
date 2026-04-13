@@ -63,7 +63,7 @@ class _FavoritesPlaceholderScreenState
       list = list.where((p) => p.evaluation >= 4.0).toList();
     }
     if (_showBigDiscount) {
-      list = list.where((p) => p.discount > 0).toList();
+      list = list.where((p) => p.discountPercent >= 30).toList();
     }
     if (_categoryId != null) {
       list = list.where((p) => p.categoryId == _categoryId).toList();

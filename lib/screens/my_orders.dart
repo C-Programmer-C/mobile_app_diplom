@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:mobile_app/api.dart';
 import 'package:mobile_app/screens/order_detail_screen.dart';
 import 'package:mobile_app/utils/error_message.dart';
+import 'package:mobile_app/utils/order_cancel.dart';
+import 'package:mobile_app/utils/order_display.dart';
+import 'package:mobile_app/utils/payment_labels.dart';
 import 'package:mobile_app/widgets/server_error_view.dart';
 
 class MyOrdersScreen extends StatefulWidget {
@@ -65,8 +68,12 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
               final deliveryAt = DateTime.tryParse(
                 o['delivery_at']?.toString() ?? '',
               )?.toLocal();
-              final deliveryComment = o['delivery_comment']?.toString() ?? '';
               final totalAmount = (o['total_amount'] as num?)?.toDouble() ?? 0;
+              final payStatus = o['payment_status']?.toString();
+              final payMethod = o['payment_method']?.toString();
+              final createdAt = parseOrderCreatedAt(o['created_at']);
+              final canCancel =
+                  orderCanCancelWithinWindow(status, createdAt);
 
               return Card(
                 child: Padding(
@@ -75,13 +82,15 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Заказ #$id',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
+                          Expanded(
+                            child: Text(
+                              'Заказ #$id',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
                           ),
                           Text(
@@ -96,12 +105,24 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        status,
+                        orderStatusRu(status),
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                           color: _statusColor(status),
                         ),
                       ),
+                      if (payStatus != null && payStatus.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          '${paymentStatusRu(payStatus)}'
+                          '${payMethod != null && payMethod.isNotEmpty ? ' • ${paymentMethodRu(payMethod)}' : ''}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: _paymentStatusColor(payStatus),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 4),
                       Text(
                         deliveryType.isEmpty
@@ -115,18 +136,25 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                       if (deliveryAt != null) ...[
                         const SizedBox(height: 4),
                         Text(
-                          'Доставим ${_formatRuDate(deliveryAt)}',
+                          'Ожидаемая доставка: ${formatRuDeliveryRange(deliveryAt)}',
                           style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                       ],
-                      if (deliveryComment.trim().isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          deliveryComment.trim(),
-                          style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                      if (canCancel) ...[
+                        const SizedBox(height: 10),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: OutlinedButton(
+                            onPressed: () => _tryCancelOrder(context, id),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red,
+                              side: const BorderSide(color: Colors.red),
+                            ),
+                            child: const Text('Отменить заказ'),
+                          ),
                         ),
                       ],
                       const SizedBox(height: 10),
@@ -154,6 +182,37 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
     );
   }
 
+  Future<void> _tryCancelOrder(BuildContext context, int orderId) async {
+    if (!await showCancelOrderConfirmDialog(context)) return;
+    if (!context.mounted) return;
+    try {
+      await ApiService.cancelOrder(orderId);
+      if (!context.mounted) return;
+      setState(() {
+        _future = ApiService.fetchMyOrders();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Заказ отменён')),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(toUserMessage(e))),
+      );
+    }
+  }
+
+  Color _paymentStatusColor(String raw) {
+    switch (raw) {
+      case 'paid':
+        return Colors.green;
+      case 'failed':
+        return Colors.red;
+      default:
+        return Colors.orange;
+    }
+  }
+
   Color _statusColor(String status) {
     switch (status) {
       case 'canceled':
@@ -175,23 +234,5 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
         return Colors.grey;
     }
   }
-}
-
-String _formatRuDate(DateTime date) {
-  const months = <String>[
-    'января',
-    'февраля',
-    'марта',
-    'апреля',
-    'мая',
-    'июня',
-    'июля',
-    'августа',
-    'сентября',
-    'октября',
-    'ноября',
-    'декабря',
-  ];
-  return '${date.day} ${months[date.month - 1]}';
 }
 

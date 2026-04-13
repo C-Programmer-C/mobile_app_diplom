@@ -12,7 +12,7 @@ class AuthTokens {
 }
 
 class ApiService {
-  static const String baseUrl = 'http://10.0.2.2:8000';
+  static const String baseUrl = 'http://192.168.1.25:8000';
 
   static String? _accessToken;
 
@@ -324,7 +324,6 @@ class ApiService {
     }
 
     if (response.statusCode == 401) {
-      _accessToken = null;
       return [];
     }
 
@@ -407,6 +406,8 @@ class ApiService {
     int? pickupPointId,
     int? cityId,
     List<int>? productIds,
+    required String paymentMethod,
+    String? cardPan,
   }) async {
     final response = await _authorizedPost(
       '/orders/checkout',
@@ -418,6 +419,9 @@ class ApiService {
         'phone': phone,
         'pickup_point_id': pickupPointId,
         'product_ids': productIds,
+        'payment_method': paymentMethod,
+        if (paymentMethod == 'card' && cardPan != null && cardPan.isNotEmpty)
+          'card_pan': cardPan,
       }),
     );
 
@@ -511,6 +515,26 @@ class ApiService {
       return {};
     }
     throw Exception('Ошибка получения заказа (${response.statusCode})');
+  }
+
+  static Future<void> cancelOrder(int orderId) async {
+    final response = await _authorizedPost('/orders/$orderId/cancel');
+    if (response.statusCode == 200) {
+      return;
+    }
+    if (response.statusCode == 400 || response.statusCode == 403) {
+      final body = jsonDecode(response.body);
+      final detail = body is Map<String, dynamic> ? body['detail'] : body;
+      if (detail is String) {
+        throw Exception(detail);
+      }
+      throw Exception(detail?.toString() ?? 'Не удалось отменить заказ');
+    }
+    if (response.statusCode == 401) {
+      _accessToken = null;
+      throw Exception('Войдите в профиль');
+    }
+    throw Exception('Ошибка отмены заказа (${response.statusCode})');
   }
 
   static Future<bool> toggleFavorite(int productId) async {
@@ -661,8 +685,9 @@ class ApiService {
       return jsonDecode(response.body) as Map<String, dynamic>;
     }
     if (response.statusCode == 401) {
-      _accessToken = null;
-      return {};
+      throw Exception(
+        'Для загрузки профиля необходимо войти в профиль',
+      );
     }
     throw Exception('Профиль (${response.statusCode})');
   }
@@ -675,8 +700,8 @@ class ApiService {
       '/auth/me',
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
-        if (name != null) 'name': name,
-        if (phone != null) 'phone': phone,
+        'name': ?name,
+        'phone': ?phone,
       }),
     );
     if (response.statusCode == 200) {

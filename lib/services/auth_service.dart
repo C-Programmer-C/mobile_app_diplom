@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile_app/api.dart';
 
@@ -7,6 +8,14 @@ class AuthService {
 
   static String? currentUserName;
 
+  /// Счётчик смены сессии: IndexedStack не пересобирает вкладки сами по себе —
+  /// слушайте это и делайте setState на корне (см. [MainScreen]).
+  static final ValueNotifier<int> sessionEpoch = ValueNotifier(0);
+
+  static void _bumpSession() {
+    sessionEpoch.value++;
+  }
+
   static Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     final accessToken = prefs.getString(_accessTokenKey);
@@ -14,6 +23,7 @@ class AuthService {
     ApiService.setTokens(
       accessToken: accessToken,
     );
+    _bumpSession();
   }
 
   static Future<void> saveTokens({
@@ -29,6 +39,7 @@ class AuthService {
     ApiService.setTokens(
       accessToken: accessToken,
     );
+    _bumpSession();
   }
 
   static Future<void> clearTokens() async {
@@ -37,6 +48,7 @@ class AuthService {
     await prefs.remove(_userNameKey);
     currentUserName = null;
     ApiService.setTokens(accessToken: null);
+    _bumpSession();
   }
 
   static Future<void> setUserName(String name) async {

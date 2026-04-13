@@ -49,6 +49,13 @@ class Product {
     this.images,
   });
 
+  /// Процент скидки по [price] и зачёркнутой цене [discount] (как в UI).
+  double get discountPercent {
+    final oldPrice = discount;
+    if (oldPrice <= 0 || price <= 0 || oldPrice <= price) return 0;
+    return (1 - price / oldPrice) * 100;
+  }
+
   factory Product.fromJson(Map<String, dynamic> json) {
     final price = _asDouble(json['price']) ?? 0.0;
     final discountPercent = _asDouble(json['discount']) ?? 0.0;
@@ -90,7 +97,7 @@ class Product {
       weight: (json['weight'] as String?),
       isNew: (json['is_new'] as bool?),
       isPopular: (json['is_popular'] as bool?),
-      quantity: (json['quantity'] as int?),
+      quantity: _asInt(json['quantity']),
       soldCount: (json['sold_count'] as int?),
       brandDetail: (json['brand'] as String?),
       images: images,
@@ -102,6 +109,14 @@ double? _asDouble(Object? v) {
   if (v == null) return null;
   if (v is num) return v.toDouble();
   if (v is String) return double.tryParse(v);
+  return null;
+}
+
+int? _asInt(Object? v) {
+  if (v == null) return null;
+  if (v is int) return v;
+  if (v is num) return v.toInt();
+  if (v is String) return int.tryParse(v);
   return null;
 }
 

@@ -73,6 +73,7 @@ class _MainScreenState extends State<MainScreen> {
   late final List<GlobalKey<NavigatorState>> _navigatorKeys;
   late final List<_TabNavigatorObserver> _navigatorObservers;
   bool _showRootAppBar = true;
+  late final VoidCallback _authSessionListener;
 
   @override
   void initState() {
@@ -84,6 +85,10 @@ class _MainScreenState extends State<MainScreen> {
       (_) => _TabNavigatorObserver(_syncAppBarVisibility),
     );
     BottomNavSync.listenable.addListener(_onNavSyncChanged);
+    _authSessionListener = () {
+      if (mounted) setState(() {});
+    };
+    AuthService.sessionEpoch.addListener(_authSessionListener);
     WidgetsBinding.instance.addPostFrameCallback((_) => _syncAppBarVisibility());
   }
 
@@ -109,6 +114,7 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   void dispose() {
+    AuthService.sessionEpoch.removeListener(_authSessionListener);
     BottomNavSync.listenable.removeListener(_onNavSyncChanged);
     super.dispose();
   }

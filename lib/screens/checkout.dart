@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile_app/api.dart';
 import 'package:mobile_app/models/product.dart';
 import 'package:mobile_app/services/cart_sync.dart';
+import 'package:mobile_app/utils/card_pan_input_formatter.dart';
 import 'package:mobile_app/utils/ru_phone_input_formatter.dart';
 
 class CheckoutScreen extends StatefulWidget {
@@ -17,6 +18,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   final _formKey = GlobalKey<FormState>();
   final _addressController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _cardPanController = TextEditingController();
   bool _submitting = false;
 
   bool _loading = true;
@@ -24,6 +26,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   int? _deliveryTypeId;
   int? _pickupTypeId;
   String _deliveryMode = 'delivery'; // delivery | pickup
+  String _paymentMethod = 'cash'; // card | cash
 
   List<Map<String, dynamic>> _cities = [];
   int? _selectedCityId;
@@ -61,6 +64,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   void dispose() {
     _addressController.dispose();
     _phoneController.dispose();
+    _cardPanController.dispose();
     super.dispose();
   }
 
@@ -68,7 +72,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (!ApiService.isAuthorized) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Войдите в профиль для оформления заказа')),
+          const SnackBar(
+            content: Text('Войдите в профиль для оформления заказа'),
+          ),
         );
         Navigator.of(context).maybePop();
       }
@@ -118,7 +124,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       }
 
       final cities = await ApiService.fetchCities();
-      final defaultCityId = cities.isNotEmpty ? cities.first['id'] as int : null;
+      final defaultCityId = cities.isNotEmpty
+          ? cities.first['id'] as int
+          : null;
       final userPhone = RuPhoneInputFormatter.formatFromAny(
         currentUser['phone']?.toString() ?? '',
       );
@@ -130,7 +138,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         _lines = lines;
         _total = total;
         _pickupTypeId = pickupId;
-        _deliveryTypeId = deliveryId ?? (deliveryTypes.isNotEmpty ? deliveryTypes.first['id'] as int : null);
+        _deliveryTypeId =
+            deliveryId ??
+            (deliveryTypes.isNotEmpty
+                ? deliveryTypes.first['id'] as int
+                : null);
         _cities = cities;
         _selectedCityId = defaultCityId;
         _pickupPoints = [];
@@ -184,8 +196,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final points = await ApiService.fetchPickupPoints(cityId: cityId);
     setState(() {
       _pickupPoints = points;
-      _selectedPickupPointId =
-          points.isNotEmpty ? points.first['id'] as int : null;
+      _selectedPickupPointId = points.isNotEmpty
+          ? points.first['id'] as int
+          : null;
     });
   }
 
@@ -197,6 +210,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Future<void> _submit() async {
+    if (_submitting) return;
     if (!ApiService.isAuthorized) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -222,6 +236,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     });
 
     try {
+      final freshProducts = await ApiService.fetchProducts();
+      final freshById = {for (final p in freshProducts) p.id: p};
+      final unavailable = _lines.where((line) {
+        final actual = freshById[line.product.id];
+        return actual?.quantity != null && actual!.quantity! <= 0;
+      }).toList();
+      if (unavailable.isNotEmpty) {
+        final names = unavailable.map((e) => e.product.name).join(', ');
+        throw Exception('Нет в наличии: $names');
+      }
+
       final productIds = _lines.map((l) => l.product.id).toSet().toList();
 
       int? pickupPointId;
@@ -230,7 +255,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       late int deliveryTypeId;
 
       if (_deliveryMode == 'pickup') {
-        if (_pickupTypeId == null || _selectedCityId == null || _selectedPickupPointId == null) {
+        if (_pickupTypeId == null ||
+            _selectedCityId == null ||
+            _selectedPickupPointId == null) {
           throw Exception('Выберите город и пункт выдачи');
         }
         deliveryTypeId = _pickupTypeId!;
@@ -254,6 +281,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         phone: _phoneController.text.trim(),
         pickupPointId: pickupPointId,
         productIds: productIds,
+        paymentMethod: _paymentMethod,
+        cardPan: _paymentMethod == 'card'
+            ? _cardPanController.text.trim()
+            : null,
       );
 
       if (!_hadPhoneBefore) {
@@ -278,7 +309,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Заказ успешно оформлен. Доставим ${_formatRuDate(deliveryAt)}'),
+          content: Text(
+            'Заказ успешно оформлен. Доставим ${_formatRuDeliveryRange(deliveryAt)}',
+          ),
           backgroundColor: Colors.green,
         ),
       );
@@ -287,10 +320,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_friendlyError(e)),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text(_friendlyError(e)), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) {
@@ -306,18 +336,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (_loading) {
       return Scaffold(
         backgroundColor: Colors.white,
-        appBar: AppBar(
-          title: const Text('Оформление заказа'),
-        ),
+        appBar: AppBar(title: const Text('Оформление заказа')),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Оформление заказа'),
-      ),
+      appBar: AppBar(title: const Text('Оформление заказа')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -327,7 +353,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             children: [
               if (_lines.isNotEmpty)
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
                   decoration: BoxDecoration(
                     color: Colors.grey[100],
                     borderRadius: BorderRadius.circular(12),
@@ -344,48 +370,63 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ),
                       const SizedBox(height: 10),
                       SizedBox(
-                        height: 96,
+                        height: 152,
                         child: ListView(
                           scrollDirection: Axis.horizontal,
                           children: _lines.map((l) {
                             return Padding(
                               padding: const EdgeInsets.only(right: 12),
                               child: SizedBox(
-                                width: 140,
+                                width: 158,
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     ClipRRect(
                                       borderRadius: BorderRadius.circular(10),
                                       child: Container(
-                                        width: 64,
-                                        height: 64,
+                                        width: 80,
+                                        height: 80,
                                         color: Colors.white,
-                                        child: (l.product.imageUrl.trim().isEmpty)
-                                            ? const Icon(Icons.photo, color: Colors.grey)
+                                        child:
+                                            (l.product.imageUrl.trim().isEmpty)
+                                            ? const Icon(
+                                                Icons.photo,
+                                                color: Colors.grey,
+                                              )
                                             : Image.network(
-                                                _normalizeUrl(l.product.imageUrl),
+                                                _normalizeUrl(
+                                                  l.product.imageUrl,
+                                                ),
                                                 fit: BoxFit.cover,
-                                                errorBuilder: (context, error, stackTrace) {
-                                                  return const Icon(Icons.photo, color: Colors.grey);
-                                                },
+                                                errorBuilder:
+                                                    (
+                                                      context,
+                                                      error,
+                                                      stackTrace,
+                                                    ) {
+                                                      return const Icon(
+                                                        Icons.photo,
+                                                        color: Colors.grey,
+                                                      );
+                                                    },
                                               ),
                                       ),
                                     ),
-                                    const SizedBox(height: 6),
+                                    const SizedBox(height: 8),
                                     Text(
                                       l.product.name,
-                                      maxLines: 1,
+                                      maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
                                         fontWeight: FontWeight.w700,
-                                        fontSize: 12,
+                                        fontSize: 13,
+                                        height: 1.25,
                                       ),
                                     ),
                                     Text(
                                       'x${l.quantity} • ${l.lineTotal.toStringAsFixed(0)} ₽',
                                       style: const TextStyle(
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: Colors.grey,
                                       ),
                                     ),
@@ -408,10 +449,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               const SizedBox(height: 16),
               const Text(
                 'Контактная информация',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
               TextFormField(
@@ -434,7 +472,65 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 },
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
+              const Text(
+                'Способ оплаты',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              RadioListTile<String>(
+                title: const Text('Банковская карта'),
+                subtitle: const Text(
+                  'Оплата онлайн — заказ сразу отмечается оплаченным',
+                ),
+                value: 'card',
+                groupValue: _paymentMethod,
+                activeColor: Colors.red,
+                onChanged: (v) {
+                  setState(() => _paymentMethod = v ?? 'cash');
+                },
+              ),
+              RadioListTile<String>(
+                title: const Text('Наличные при получении'),
+                subtitle: const Text(
+                  'Оплата на месте — статус «ожидает оплаты»',
+                ),
+                value: 'cash',
+                groupValue: _paymentMethod,
+                activeColor: Colors.red,
+                onChanged: (v) {
+                  setState(() {
+                    _paymentMethod = v ?? 'cash';
+                    if (_paymentMethod == 'cash') {
+                      _cardPanController.clear();
+                    }
+                  });
+                },
+              ),
+              if (_paymentMethod == 'card') ...[
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _cardPanController,
+                  style: const TextStyle(color: Colors.black),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [CardPanInputFormatter()],
+                  decoration: const InputDecoration(
+                    labelText: 'Номер карты',
+                    hintText: '4242 4242 4242 4242',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.credit_card),
+                  ),
+                  validator: (value) {
+                    final v = value?.trim() ?? '';
+                    if (v.isEmpty) return 'Введите номер карты';
+                    if (!CardPanInputFormatter.isComplete(v)) {
+                      return 'Номер карты: 13–19 цифр';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+
               const SizedBox(height: 24),
               const Text(
                 'Способ получения',
@@ -574,7 +670,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   validator: (value) {
                     final v = value?.trim() ?? '';
                     if (v.isEmpty) return 'Введите адрес доставки';
-                    if (v.length < 8) return 'Адрес слишком короткий';
+                    if (v.length < 3) return 'Адрес слишком короткий';
                     return null;
                   },
                 ),
@@ -606,25 +702,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
-                          'Примерная дата:',
+                          'Ожидаемая доставка:',
                           style: TextStyle(fontSize: 16),
                         ),
-                        Text(
-                          'Доставим ${_formatRuDate(_estimatedDateForCheckout())}',
-                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        const VerticalDivider(width: 24),
+                        Flexible(
+                          child: Text(
+                            _formatRuDeliveryRange(_estimatedDateForCheckout()),
+                            textAlign: TextAlign.end,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 6),
-                    if (_deliveryMode == 'pickup' && _selectedPickupPointId != null)
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'Обычно это занимает ${_estimatedDaysForCurrentSelection()} дн.',
-                          style: TextStyle(fontSize: 12, color: Colors.grey[700]),
-                        ),
-                      ),
-                    const Divider(height: 24),
+                    if (_deliveryMode == 'pickup' &&
+                        _selectedPickupPointId != null)
+                      const Divider(height: 24),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -679,7 +773,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 }
 
-String _formatRuDate(DateTime date) {
+/// Окно доставки: дата ожидания + 3 дня, напр. «14–17 апреля».
+String _formatRuDeliveryRange(DateTime startLocal) {
   const months = <String>[
     'января',
     'февраля',
@@ -694,7 +789,15 @@ String _formatRuDate(DateTime date) {
     'ноября',
     'декабря',
   ];
-  return '${date.day} ${months[date.month - 1]}';
+  final end = startLocal.add(const Duration(days: 3));
+  if (startLocal.year == end.year && startLocal.month == end.month) {
+    if (startLocal.day == end.day) {
+      return '${startLocal.day} ${months[startLocal.month - 1]}';
+    }
+    return '${startLocal.day}–${end.day} ${months[startLocal.month - 1]}';
+  }
+  return '${startLocal.day} ${months[startLocal.month - 1]} – '
+      '${end.day} ${months[end.month - 1]}';
 }
 
 String _friendlyError(Object? error) {
@@ -719,4 +822,3 @@ class _CartLine {
     required this.lineTotal,
   });
 }
-

@@ -131,6 +131,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       );
     }
 
+    final isOutOfStock =
+        detailedProduct.quantity != null && detailedProduct.quantity! <= 0;
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -168,109 +170,127 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Row(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () async {
-                    if (_isInCart) {
-                      BottomNavSync.setIndex(2);
-                      if (Navigator.of(context).canPop()) {
-                        Navigator.of(context).pop();
-                      }
-                      return;
-                    }
-                    if (!ApiService.isAuthorized) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Чтобы добавить товар в корзину нужно войти в профиль')),
-                      );
-                      return;
-                    }
-                    try {
-                      await ApiService.addToCart(detailedProduct.id);
-                      if (context.mounted) {
-                        setState(() {
-                          _isInCart = true;
-                        });
-                        CartSync.notifyChanged();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Товар добавлен в корзину'),
+              if (!isOutOfStock)
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () async {
+                          if (_isInCart) {
+                            BottomNavSync.setIndex(2);
+                            if (Navigator.of(context).canPop()) {
+                              Navigator.of(context).pop();
+                            }
+                            return;
+                          }
+                          if (!ApiService.isAuthorized) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Чтобы добавить товар в корзину нужно войти в профиль')),
+                            );
+                            return;
+                          }
+                          try {
+                            await ApiService.addToCart(detailedProduct.id);
+                            if (context.mounted) {
+                              setState(() {
+                                _isInCart = true;
+                              });
+                              CartSync.notifyChanged();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Товар добавлен в корзину'),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Не удалось оформить заказ: ${toUserMessage(e)}',
+                                  ),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          side: const BorderSide(color: Colors.red),
+                        ),
+                        child: Text(
+                          _isInCart ? 'В корзине' : 'В корзину',
+                          style: const TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.w600,
                           ),
-                        );
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Не удалось оформить заказ: ${toUserMessage(e)}',
-                            ),
-                          ),
-                        );
-                      }
-                    }
-                  },
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    side: const BorderSide(color: Colors.red),
-                  ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          try {
+                            if (!_isInCart) {
+                              await ApiService.addToCart(detailedProduct.id);
+                              if (context.mounted) {
+                                setState(() {
+                                  _isInCart = true;
+                                });
+                                CartSync.notifyChanged();
+                              }
+                            }
+
+                            if (context.mounted) {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => CheckoutScreen(
+                                    selectedProductIds: [detailedProduct.id],
+                                  ),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Чтобы купить товар, нужно войти в свой профиль',
+                                  ),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text(
+                          'Купить сейчас',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              if (isOutOfStock)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 4),
                   child: Text(
-                    _isInCart ? 'В корзине' : 'В корзину',
-                    style: const TextStyle(
+                    'Нет в наличии',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
                       color: Colors.red,
-                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () async {
-                    try {
-                      if (!_isInCart) {
-                        await ApiService.addToCart(detailedProduct.id);
-                        if (context.mounted) {
-                          setState(() {
-                            _isInCart = true;
-                          });
-                          CartSync.notifyChanged();
-                        }
-                      }
-
-                      if (context.mounted) {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => CheckoutScreen(
-                              selectedProductIds: [detailedProduct.id],
-                            ),
-                          ),
-                        );
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Чтобы купить товар, нужно войти в свой профиль',
-                            ),
-                          ),
-                        );
-                      }
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    backgroundColor: Colors.red,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text(
-                    'Купить сейчас',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ),
             ],
           ),
         ),

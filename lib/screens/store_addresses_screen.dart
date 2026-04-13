@@ -94,14 +94,12 @@ class _StoreAddressesScreenState extends State<StoreAddressesScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Адреса магазинов'),
-        actions: _selectedCity != null
-            ? [
-                IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: _clearSelection,
-                  tooltip: 'Сбросить выбор',
-                ),
-              ]
+        leading: _selectedCity != null
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: _clearSelection,
+                tooltip: 'К списку городов',
+              )
             : null,
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(

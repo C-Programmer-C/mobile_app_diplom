@@ -55,7 +55,7 @@ def seed_statuses() -> list[Status]:
 
 def seed_delivery_types() -> list[DeliveryType]:
     items = [
-        DeliveryType(name="Курьерская доставка"),
+        DeliveryType(name="Адрес"),
         DeliveryType(name="Самовывоз из пункта выдачи"),
     ]
     session.add_all(items)
@@ -212,7 +212,7 @@ def seed_products(
             smartphones.id,
             xiaomi.id,
             "23999.99",
-            "15.00",
+            "56.00",
             "telephone4.jpg",
         ),
         (
@@ -220,7 +220,7 @@ def seed_products(
             smartphones.id,
             motorola.id,
             "32999.99",
-            "9.00",
+            "32.00",
             "telephone6.jpg",
         ),
         (
@@ -244,7 +244,7 @@ def seed_products(
             smartphones.id,
             apple.id,
             "64999.99",
-            "4.00",
+            "35.00",
             "telephone9.jpg",
         ),
         (
@@ -422,6 +422,9 @@ def seed_orders(
         phone="+7 900 000‑00‑01",
         delivery_at=datetime.utcnow() + timedelta(days=3),
         delivery_comment="Ориентировочная дата курьерской доставки.",
+        payment_status="pending",
+        payment_method="cash",
+        paid_at=None,
     )
     order2 = Order(
         user_id=user1.id,
@@ -436,6 +439,9 @@ def seed_orders(
         delivery_comment=(
             f"Ориентировочная дата прибытия в пункт выдачи через {pp_moscow.estimated_days} дн."
         ),
+        payment_status="paid",
+        payment_method="card",
+        paid_at=datetime.utcnow(),
     )
 
     session.add_all([order1, order2])

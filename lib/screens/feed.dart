@@ -16,12 +16,14 @@ class FeedScreen extends StatefulWidget {
 
 class _FeedScreenState extends State<FeedScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocus = FocusNode();
   static const Color _searchAccentColor = Color(0xFFF4A261);
   String _searchQuery = '';
   String? _searchSort;
   bool _searchShowPopular = false;
   bool _searchShowHighRating = false;
   bool _searchShowBigDiscount = false;
+  bool _searchShowInStock = false;
   int? _searchCategoryId;
   List<Map<String, dynamic>> _categories = [];
   bool _loadingCategories = true;
@@ -66,10 +68,15 @@ class _FeedScreenState extends State<FeedScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Фильтр поиска',
+                  'Фильтры',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 12),
+                const Text(
+                  'Сортировка',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
                   runSpacing: 6,
@@ -106,6 +113,18 @@ class _FeedScreenState extends State<FeedScreen> {
                         setState(() => _searchSort = v ? 'newest' : null);
                       },
                     ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Показать только',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
                     FilterChip(
                       label: const Text('Популярное'),
                       selected: _searchShowPopular,
@@ -128,6 +147,14 @@ class _FeedScreenState extends State<FeedScreen> {
                       onSelected: (v) {
                         setModalState(() => _searchShowBigDiscount = v);
                         setState(() => _searchShowBigDiscount = v);
+                      },
+                    ),
+                    FilterChip(
+                      label: const Text('Только в наличии'),
+                      selected: _searchShowInStock,
+                      onSelected: (v) {
+                        setModalState(() => _searchShowInStock = v);
+                        setState(() => _searchShowInStock = v);
                       },
                     ),
                   ],
@@ -191,6 +218,7 @@ class _FeedScreenState extends State<FeedScreen> {
                             _searchShowPopular = false;
                             _searchShowHighRating = false;
                             _searchShowBigDiscount = false;
+                            _searchShowInStock = false;
                             _searchCategoryId = null;
                           });
                           setState(() {
@@ -198,6 +226,7 @@ class _FeedScreenState extends State<FeedScreen> {
                             _searchShowPopular = false;
                             _searchShowHighRating = false;
                             _searchShowBigDiscount = false;
+                            _searchShowInStock = false;
                             _searchCategoryId = null;
                           });
                         },
@@ -265,50 +294,92 @@ class _FeedScreenState extends State<FeedScreen> {
   void dispose() {
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
+    _searchFocus.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_searchQuery.isNotEmpty) {
-      return _buildSearchResults();
-    }
+    final hasQuery = _searchQuery.isNotEmpty;
+    final hasActiveFilters =
+        _searchSort != null ||
+        _searchShowPopular ||
+        _searchShowHighRating ||
+        _searchShowBigDiscount ||
+        _searchShowInStock ||
+        _searchCategoryId != null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: TextField(
-            controller: _searchController,
-            cursorColor: _searchAccentColor,
-            style: const TextStyle(fontSize: 16),
-            decoration: _searchInputDecoration(hintText: 'Поиск товаров...'),
-          ),
-        ),
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.only(bottom: 24),
+          child: Row(
             children: [
-_CarouselBlock(
-                title: '⭐ Свежие поступления',
-                future: ApiService.fetchFilteredProducts(isNew: true),
+              SizedBox(
+                width: hasQuery ? 48 : 0,
+                child: hasQuery
+                    ? IconButton(
+                        icon: const Icon(Icons.arrow_back),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      )
+                    : null,
               ),
-              _CarouselBlock(
-                title: '🔥 Хиты продаж',
-                future: ApiService.fetchFilteredProducts(popular: true),
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  focusNode: _searchFocus,
+                  cursorColor: _searchAccentColor,
+                  style: const TextStyle(fontSize: 16),
+                  decoration:
+                      _searchInputDecoration(hintText: 'Поиск товаров...'),
+                ),
               ),
-              _CarouselBlock(
-                title: '💸 Скидки от 30% — забирай выгодно',
-                future: ApiService.fetchFilteredProducts(bigDiscount: true),
+              SizedBox(
+                width: 48,
+                child: IconButton(
+                  onPressed: _showSearchFilters,
+                  icon: Icon(
+                    Icons.tune,
+                    color: hasActiveFilters ? Colors.black : null,
+                  ),
+                ),
               ),
             ],
           ),
+        ),
+        Expanded(
+          child: hasQuery || hasActiveFilters
+              ? _buildSearchResultsBody()
+              : _buildFeedHome(),
         ),
       ],
     );
   }
 
-  Widget _buildSearchResults() {
+  Widget _buildFeedHome() {
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 24),
+      children: [
+        _CarouselBlock(
+          title: '⭐ Свежие поступления',
+          future: ApiService.fetchFilteredProducts(isNew: true),
+        ),
+        _CarouselBlock(
+          title: '🔥 Хиты продаж',
+          future: ApiService.fetchFilteredProducts(popular: true),
+        ),
+        _CarouselBlock(
+          title: '💸 Скидки от 30% — забирай выгодно',
+          future: ApiService.fetchFilteredProducts(bigDiscount: true),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchResultsBody() {
     const crossAxisCount = 2;
     const spacing = 6.0;
     const padding = 9.0;
@@ -317,117 +388,105 @@ _CarouselBlock(
     const tileHeight = imageHeight + bottomSectionHeight;
 
     final isLoggedIn = AuthService.currentUserName != null;
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () {
-                  _searchController.clear();
-                  setState(() => _searchQuery = '');
-                },
-              ),
-              Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  cursorColor: _searchAccentColor,
-                  style: const TextStyle(fontSize: 16),
-                  decoration: _searchInputDecoration(hintText: 'Поиск товаров...'),
-                ),
-              ),
-              IconButton(
-                onPressed: _showSearchFilters,
-                icon: const Icon(Icons.tune),
-              ),
-            ],
+    return FutureBuilder<List<dynamic>>(
+      future: Future.wait([
+        _searchQuery.isNotEmpty
+            ? ApiService.searchProducts(_searchQuery)
+            : (_searchSort != null ||
+                      _searchShowPopular ||
+                      _searchShowHighRating ||
+                      _searchShowBigDiscount ||
+                      _searchCategoryId != null)
+                  ? ApiService.fetchFilteredProducts(
+                      sortBy: _searchSort,
+                      popular: _searchShowPopular,
+                      highRating: _searchShowHighRating,
+                      bigDiscount: _searchShowBigDiscount,
+                      categoryId: _searchCategoryId,
+                    )
+                  : ApiService.fetchProducts(),
+        if (isLoggedIn)
+          ApiService.fetchFavoriteIds().catchError((_) => <int>[])
+        else
+          Future.value(<int>[]),
+        if (isLoggedIn)
+          ApiService.fetchCartItems().catchError((_) => <CartItem>[])
+        else
+          Future.value(<CartItem>[]),
+      ]),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return ServerErrorView(
+            message: toUserMessage(snapshot.error),
+            onRetry: () => setState(() {}),
+          );
+        }
+        final data = snapshot.data!;
+        final products = data[0] as List<Product>;
+        final favoriteIds = data[1] as List<int>;
+        final cartItems = data[2] as List<CartItem>;
+        final cartIds = cartItems.map((e) => e.productId).toSet();
+        if (products.isEmpty) {
+          return const Center(child: Text('Ничего не найдено'));
+        }
+        var sortedProducts = List<Product>.from(products);
+        if (_searchShowPopular) {
+          sortedProducts =
+              sortedProducts.where((p) => p.isPopular == true).toList();
+        }
+        if (_searchShowHighRating) {
+          sortedProducts =
+              sortedProducts.where((p) => p.evaluation >= 4.0).toList();
+        }
+        if (_searchShowBigDiscount) {
+          sortedProducts = sortedProducts
+              .where((p) => p.discountPercent >= 30)
+              .toList();
+        }
+        if (_searchShowInStock) {
+          sortedProducts = sortedProducts
+              .where((p) => (p.quantity ?? 0) > 0)
+              .toList();
+        }
+        if (_searchCategoryId != null) {
+          sortedProducts = sortedProducts
+              .where((p) => p.categoryId == _searchCategoryId)
+              .toList();
+        }
+        if (_searchSort == 'price_asc') {
+          sortedProducts.sort((a, b) => a.price.compareTo(b.price));
+        } else if (_searchSort == 'price_desc') {
+          sortedProducts.sort((a, b) => b.price.compareTo(a.price));
+        } else if (_searchSort == 'rating') {
+          sortedProducts.sort((a, b) => b.evaluation.compareTo(a.evaluation));
+        } else if (_searchSort == 'newest') {
+          sortedProducts.sort((a, b) => b.id.compareTo(a.id));
+        }
+        if (sortedProducts.isEmpty) {
+          return const Center(child: Text('Ничего не найдено по фильтру'));
+        }
+        return GridView.builder(
+          padding: const EdgeInsets.all(padding),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: spacing,
+            mainAxisSpacing: spacing,
+            mainAxisExtent: tileHeight,
           ),
-        ),
-        Expanded(
-          child: FutureBuilder<List<dynamic>>(
-            future: Future.wait([
-              ApiService.searchProducts(_searchQuery),
-              if (isLoggedIn)
-                ApiService.fetchFavoriteIds().catchError((_) => <int>[])
-              else
-                Future.value(<int>[]),
-              if (isLoggedIn)
-                ApiService.fetchCartItems().catchError((_) => <CartItem>[])
-              else
-                Future.value(<CartItem>[]),
-            ]),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (snapshot.hasError) {
-                return ServerErrorView(
-                  message: toUserMessage(snapshot.error),
-                  onRetry: () => setState(() {}),
-                );
-              }
-              final data = snapshot.data!;
-              final products = data[0] as List<Product>;
-              final favoriteIds = data[1] as List<int>;
-              final cartItems = data[2] as List<CartItem>;
-              final cartIds = cartItems.map((e) => e.productId).toSet();
-              if (products.isEmpty) {
-                return const Center(child: Text('Ничего не найдено'));
-              }
-              var sortedProducts = List<Product>.from(products);
-              if (_searchShowPopular) {
-                sortedProducts =
-                    sortedProducts.where((p) => p.isPopular == true).toList();
-              }
-              if (_searchShowHighRating) {
-                sortedProducts =
-                    sortedProducts.where((p) => p.evaluation >= 4.0).toList();
-              }
-              if (_searchShowBigDiscount) {
-                sortedProducts =
-                    sortedProducts.where((p) => p.discount > 0).toList();
-              }
-              if (_searchCategoryId != null) {
-                sortedProducts = sortedProducts
-                    .where((p) => p.categoryId == _searchCategoryId)
-                    .toList();
-              }
-              if (_searchSort == 'price_asc') {
-                sortedProducts.sort((a, b) => a.price.compareTo(b.price));
-              } else if (_searchSort == 'price_desc') {
-                sortedProducts.sort((a, b) => b.price.compareTo(a.price));
-              } else if (_searchSort == 'rating') {
-                sortedProducts.sort((a, b) => b.evaluation.compareTo(a.evaluation));
-              } else if (_searchSort == 'newest') {
-                sortedProducts.sort((a, b) => b.id.compareTo(a.id));
-              }
-              if (sortedProducts.isEmpty) {
-                return const Center(child: Text('Ничего не найдено по фильтру'));
-              }
-              return GridView.builder(
-                padding: const EdgeInsets.all(padding),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: crossAxisCount,
-                  crossAxisSpacing: spacing,
-                  mainAxisSpacing: spacing,
-                  mainAxisExtent: tileHeight,
-                ),
-                itemCount: sortedProducts.length,
-                itemBuilder: (context, index) {
-                  final p = sortedProducts[index];
-                  return ProductCard(
-                    product: p,
-                    initiallyFavorite: favoriteIds.contains(p.id),
-                    initiallyInCart: cartIds.contains(p.id),
-                  );
-                },
-              );
-            },
-          ),
-        ),
-      ],
+          itemCount: sortedProducts.length,
+          itemBuilder: (context, index) {
+            final p = sortedProducts[index];
+            return ProductCard(
+              product: p,
+              initiallyFavorite: favoriteIds.contains(p.id),
+              initiallyInCart: cartIds.contains(p.id),
+            );
+          },
+        );
+      },
     );
   }
 }

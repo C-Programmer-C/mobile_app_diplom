@@ -1,3 +1,7 @@
+import re
+from datetime import datetime, timezone
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
@@ -12,6 +16,14 @@ from database.auth import (
 orders_router = APIRouter(prefix="/orders", tags=["orders"])
 
 
+def _card_digits_only(card_pan: str | None) -> str:
+    return re.sub(r"\D", "", card_pan or "")
+
+
+def _card_pan_length_ok(pan: str) -> bool:
+    return pan.isdigit() and 13 <= len(pan) <= 19
+
+
 class CheckoutIn(BaseModel):
     delivery_type_id: int
     city_id: int | None = None
@@ -19,6 +31,8 @@ class CheckoutIn(BaseModel):
     phone: str
     pickup_point_id: int | None = None
     product_ids: list[int] | None = None
+    payment_method: Literal["card", "cash"]
+    card_pan: str | None = None
 
 
 @orders_router.post("/checkout", summary="Create order from cart")
@@ -27,8 +41,24 @@ def checkout(data: CheckoutIn, user_email: str = Depends(get_current_user_email)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
+    now = datetime.now(timezone.utc)
+    if data.payment_method == "card":
+        digits = _card_digits_only(data.card_pan)
+        if not _card_pan_length_ok(digits):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Некорректный номер карты (нужно 13–19 цифр)",
+            )
+        payment_status = "paid"
+        paid_at = now
+        payment_method = "card"
+    else:
+        payment_status = "pending"
+        paid_at = None
+        payment_method = "cash"
+
     try:
-        order = create_order_from_cart(
+        return create_order_from_cart(
             user=user,
             delivery_type_id=data.delivery_type_id,
             city_id=data.city_id,
@@ -36,18 +66,12 @@ def checkout(data: CheckoutIn, user_email: str = Depends(get_current_user_email)
             phone=data.phone,
             pickup_point_id=data.pickup_point_id,
             product_ids=data.product_ids,
+            payment_method=payment_method,
+            payment_status=payment_status,
+            paid_at=paid_at,
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-
-    return {
-        "id": order.id,
-        "status_id": order.status_id,
-        "total_amount": float(order.total_amount),
-        "created_at": order.created_at,
-        "delivery_at": order.delivery_at,
-        "delivery_comment": order.delivery_comment,
-    }
 
 
 @orders_router.post("/{order_id}/cancel", summary="Cancel order")
@@ -57,13 +81,11 @@ def cancel_order(order_id: int, user_email: str = Depends(get_current_user_email
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     try:
-        order = cancel_order_for_user(user, order_id)
+        return cancel_order_for_user(user, order_id)
     except PermissionError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-
-    return {"id": order.id, "status_id": order.status_id}
 
 
 @orders_router.get("/meta/delivery_types", summary="Delivery types")

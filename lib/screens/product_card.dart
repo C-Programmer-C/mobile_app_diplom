@@ -49,6 +49,7 @@ class _ProductCardState extends State<ProductCard>
   Widget build(BuildContext context) {
     final product = widget.product;
     final isLoggedIn = ApiService.isAuthorized;
+    final isOutOfStock = product.quantity != null && product.quantity! <= 0;
 
     return InkWell(
       onTap: () {
@@ -234,7 +235,23 @@ class _ProductCardState extends State<ProductCard>
                     const SizedBox(height: 2),
                     SizedBox(
                       width: double.infinity,
-                      child: _isInCart
+                      child: isOutOfStock
+                          ? Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade200,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              alignment: Alignment.center,
+                              child: const Text(
+                                'Нет в наличии',
+                                style: TextStyle(
+                                  color: Colors.black87,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            )
+                          : _isInCart
                           ? OutlinedButton(
                               style: OutlinedButton.styleFrom(
                                 backgroundColor: Colors.white,
