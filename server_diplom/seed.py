@@ -1,6 +1,6 @@
 # seed.py
-from decimal import Decimal
 from datetime import datetime, timedelta
+from decimal import Decimal
 
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker
@@ -23,6 +23,7 @@ from models.statuses import OrderStatusEnum, Status
 from models.user import User
 
 engine = create_engine(settings.DATABASE_URL)
+
 SessionLocal = sessionmaker(bind=engine)
 session = SessionLocal()
 
@@ -103,15 +104,15 @@ def seed_categories() -> list[Category]:
     items = [
         Category(
             name="Смартфоны",
-            icon_path="http://127.0.0.1:8000/static/icons/smartphone.png",
+            icon_path=f"{settings.CURRENT_DOMEN}/static/icons/smartphone.png",
         ),
         Category(
             name="Ноутбуки",
-            icon_path="http://127.0.0.1:8000/static/icons/laptop.png",
+            icon_path=f"{settings.CURRENT_DOMEN}/static/icons/laptop.png",
         ),
         Category(
             name="Планшеты",
-            icon_path="http://127.0.0.1:8000/static/icons/tablet.webp",
+            icon_path=f"{settings.CURRENT_DOMEN}/static/icons/tablet.webp",
         ),
     ]
     session.add_all(items)
@@ -146,14 +147,14 @@ def seed_users() -> list[User]:
     default_password_hash = hash_password("123456")
     items = [
         User(
-            email="adm",
+            email="adm@gmail.com",
             phone="+7 900 000‑00‑01",
             hashed_password=default_password_hash,
             role="admin",
             name="Admin",
         ),
         User(
-            email="stf",
+            email="stf@gmail.com",
             phone="+7 900 000‑00‑02",
             hashed_password=default_password_hash,
             role="staff",
@@ -179,7 +180,7 @@ def seed_products(
     motorola = next(f for f in fabricators if f.name == "Motorola")
     tecno = next(f for f in fabricators if f.name == "Tecno")
 
-    base_url = "http://127.0.0.1:8000/static/products"
+    base_url = f"{settings.CURRENT_DOMEN}/static/products"
 
     product_specs = [
         # Смартфоны
