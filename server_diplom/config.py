@@ -8,5 +8,6 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str
     ALGORITHM: str
     JWT_REFRESH_SECRET_KEY: str
+    CURRENT_DOMEN: str
 
 settings = Settings() # type: ignore
