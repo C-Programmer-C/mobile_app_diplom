@@ -6,7 +6,11 @@ from pydantic.networks import EmailStr
 from database.auth import (
     authenticate_user,
     create_user,
+    create_user_with_role,
+    get_user_details_with_activity,
     get_user_by_email,
+    get_users_list,
+    update_user_by_id,
     update_user_profile,
 )
 from utils.auth import (
@@ -44,7 +48,7 @@ def register(data: RegisterRequest):
     )
     if not is_exist:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="The user already exists"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="The user already exists"
         )
     return Response(status_code=status.HTTP_201_CREATED)
 
@@ -138,6 +142,21 @@ class UpdateMeRequest(BaseModel):
     phone: Optional[str] = None
 
 
+class UpdateUserByAdminRequest(BaseModel):
+    email: Optional[str] = None
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    role: Optional[str] = None
+
+
+class CreateUserByAdminRequest(BaseModel):
+    email: str
+    password: str
+    name: str
+    role: str = "user"
+    phone: Optional[str] = None
+
+
 @auth_router.get("/me", summary="Текущий пользователь")
 def read_me(email: str = Depends(get_current_user_email)):
     user = get_user_by_email(email)
@@ -147,6 +166,7 @@ def read_me(email: str = Depends(get_current_user_email)):
         "id": user.id,
         "email": user.email,
         "name": user.name,
+        "role": user.role,
         "phone": user.phone or "",
     }
 
@@ -167,6 +187,110 @@ def patch_me(
         "id": user.id,
         "email": user.email,
         "name": user.name,
+        "phone": user.phone or "",
+    }
+
+
+@auth_router.get("/users", summary="Список пользователей")
+def read_users(
+    role: Optional[str] = None,
+    q: Optional[str] = None,
+    email: str = Depends(get_current_user_email),
+):
+    current_user = get_user_by_email(email)
+    if not current_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not found")
+    if current_user.role not in {"admin", "staff"}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="insufficient permissions",
+        )
+    return get_users_list(role=role, q=q)
+
+
+@auth_router.get("/users/{user_id}/details", summary="Профиль пользователя + активность")
+def read_user_details(
+    user_id: int,
+    email: str = Depends(get_current_user_email),
+):
+    current_user = get_user_by_email(email)
+    if not current_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not found")
+    if current_user.role not in {"admin", "staff"}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="insufficient permissions",
+        )
+
+    payload = get_user_details_with_activity(user_id)
+    if not payload:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not found")
+    return payload
+
+
+@auth_router.patch("/users/{user_id}", summary="Обновить пользователя (admin)")
+def patch_user_by_admin(
+    user_id: int,
+    data: UpdateUserByAdminRequest,
+    email: str = Depends(get_current_user_email),
+):
+    current_user = get_user_by_email(email)
+    if not current_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not found")
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="admin only",
+        )
+
+    user = update_user_by_id(
+        user_id=user_id,
+        email=data.email,
+        name=data.name,
+        phone=data.phone,
+        role=data.role,
+    )
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not found")
+    return {
+        "id": user.id,
+        "email": user.email,
+        "name": user.name,
+        "role": user.role,
+        "phone": user.phone or "",
+    }
+
+
+@auth_router.post("/users", summary="Создать пользователя (admin)")
+def create_user_by_admin(
+    data: CreateUserByAdminRequest,
+    email: str = Depends(get_current_user_email),
+):
+    current_user = get_user_by_email(email)
+    if not current_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not found")
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="admin only",
+        )
+    user = create_user_with_role(
+        email=data.email,
+        password=data.password,
+        name=data.name,
+        role=data.role,
+        phone=data.phone,
+    )
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="user already exists",
+        )
+    return {
+        "id": user.id,
+        "email": user.email,
+        "name": user.name,
+        "role": user.role,
         "phone": user.phone or "",
     }
 

@@ -12,7 +12,7 @@ class AuthTokens {
 }
 
 class ApiService {
-  static const String baseUrl = 'https://cheekily-coherent-newfoundland.cloudpub.ru:8000';
+  static const String baseUrl = 'https://cheekily-coherent-newfoundland.cloudpub.ru';
 
   static String? _accessToken;
 
@@ -137,7 +137,6 @@ class ApiService {
           })
           .toList()
           .cast<Product>();
-      // лог в консоль
       // ignore: avoid_print
       print('Товары успешно получены: ${products.length}');
       return products;

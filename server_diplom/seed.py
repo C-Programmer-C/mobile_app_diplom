@@ -6,6 +6,7 @@ from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker
 
 from config import settings
+from database.auth import hash_password
 from models.brands import Brand
 from models.cart import Cart
 from models.category import Category
@@ -142,22 +143,21 @@ def seed_fabricators() -> list[Brand]:
 
 
 def seed_users() -> list[User]:
-    # пароли должны быть уже захэшированы так же, как в боевом коде;
-    # для сидов кладём просто "hashed-password" как заглушку
+    default_password_hash = hash_password("123456")
     items = [
         User(
-            email="user1@example.com",
+            email="adm",
             phone="+7 900 000‑00‑01",
-            hashed_password="hashed-password-1",
-            role="user",
-            name="Иван Петров",
+            hashed_password=default_password_hash,
+            role="admin",
+            name="Admin",
         ),
         User(
-            email="user2@example.com",
+            email="stf",
             phone="+7 900 000‑00‑02",
-            hashed_password="hashed-password-2",
-            role="user",
-            name="Анна Смирнова",
+            hashed_password=default_password_hash,
+            role="staff",
+            name="Staff",
         ),
     ]
     session.add_all(items)
@@ -402,14 +402,14 @@ def seed_orders(
 
     user1 = users[0]
     pending_status = next(s for s in statuses if s.name == OrderStatusEnum.pending)
-    delivered_status = next(s for s in statuses if s.name == OrderStatusEnum.delivered)
+    pickup_done_status = next(s for s in statuses if s.name == OrderStatusEnum.pickup)
 
     courier = next(dt for dt in delivery_types if "Курьер" in dt.name)
     pickup = next(dt for dt in delivery_types if "Самовывоз" in dt.name)
 
     moscow = next(c for c in cities if c.name == "Москва")
-    spb = next(c for c in cities if c.name == "Санкт‑Петербург")
     pp_moscow = next(p for p in pickup_points if p.city_id == moscow.id)
+    now = datetime.utcnow()
 
     order1 = Order(
         user_id=user1.id,
@@ -420,7 +420,7 @@ def seed_orders(
         pickup_point_id=None,
         total_amount=Decimal("0.00"),
         phone="+7 900 000‑00‑01",
-        delivery_at=datetime.utcnow() + timedelta(days=3),
+        estimated_delivery_at=now + timedelta(days=3),
         delivery_comment="Ориентировочная дата курьерской доставки.",
         payment_status="pending",
         payment_method="cash",
@@ -429,19 +429,23 @@ def seed_orders(
     order2 = Order(
         user_id=user1.id,
         delivery_type_id=pickup.id,
-        status_id=delivered_status.id,
+        status_id=pickup_done_status.id,
         shipping_address=pp_moscow.address,
-        city_id=spb.id,
+        city_id=moscow.id,
         pickup_point_id=pp_moscow.id,
         total_amount=Decimal("0.00"),
         phone="+7 900 000‑00‑01",
-        delivery_at=datetime.utcnow() + timedelta(days=pp_moscow.estimated_days),
+        estimated_delivery_at=now + timedelta(days=pp_moscow.estimated_days),
         delivery_comment=(
             f"Ориентировочная дата прибытия в пункт выдачи через {pp_moscow.estimated_days} дн."
         ),
+        processed_at=now - timedelta(days=2),
+        shipped_at=now - timedelta(days=1),
+        ready_for_pickup_at=now - timedelta(hours=5),
+        pickup_at=now - timedelta(hours=1),
         payment_status="paid",
         payment_method="card",
-        paid_at=datetime.utcnow(),
+        paid_at=now,
     )
 
     session.add_all([order1, order2])

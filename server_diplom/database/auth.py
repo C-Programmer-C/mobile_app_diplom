@@ -1,5 +1,9 @@
-import bcrypt
 from datetime import datetime, timedelta, timezone
+
+import bcrypt
+from sqlalchemy import create_engine, select, update
+from sqlalchemy.orm import joinedload, sessionmaker
+
 from config import settings
 from database.base import Base
 from models.brands import Brand
@@ -16,12 +20,54 @@ from models.product_images import ProductImages
 from models.review import Reviews
 from models.statuses import OrderStatusEnum, Status
 from models.user import User
-from sqlalchemy import create_engine, select, update
-from sqlalchemy.orm import sessionmaker
 
 engine = create_engine(settings.DATABASE_URL)
 Session = sessionmaker(bind=engine)
 Base.metadata.create_all(bind=engine)
+
+_ORDER_STATUS_FLOW_COURIER: tuple[OrderStatusEnum, ...] = (
+    OrderStatusEnum.pending,
+    OrderStatusEnum.processing,
+    OrderStatusEnum.shipped,
+    OrderStatusEnum.in_transit,
+    OrderStatusEnum.delivered,
+)
+_ORDER_STATUS_FLOW_PICKUP: tuple[OrderStatusEnum, ...] = (
+    OrderStatusEnum.pending,
+    OrderStatusEnum.processing,
+    OrderStatusEnum.shipped,
+    OrderStatusEnum.in_transit,
+    OrderStatusEnum.ready_for_pickup,
+    OrderStatusEnum.pickup,
+)
+
+
+def _order_is_pickup(order: Order) -> bool:
+    name = (order.delivery_type.name or "") if order.delivery_type else ""
+    return "Самовывоз" in name
+
+
+def _validate_status_change(order: Order, new_status: Status) -> None:
+    cur = order.status.name if order.status else None
+    new_name = new_status.name
+    if not isinstance(cur, OrderStatusEnum) or not isinstance(new_name, OrderStatusEnum):
+        return
+    if new_name == OrderStatusEnum.canceled:
+        return
+    if cur == new_name:
+        return
+    if cur == OrderStatusEnum.canceled:
+        raise ValueError("Отменённый заказ нельзя перевести в другой статус.")
+    pickup = _order_is_pickup(order)
+    flow_core = _ORDER_STATUS_FLOW_PICKUP if pickup else _ORDER_STATUS_FLOW_COURIER
+    if new_name not in flow_core:
+        raise ValueError("Этот статус недоступен для выбранного типа доставки.")
+    if cur not in flow_core:
+        return
+    i = flow_core.index(cur)
+    j = flow_core.index(new_name)
+    if j != i + 1:
+        raise ValueError("Неверный переход: соблюдайте очередность этапов доставки.")
 
 
 def get_user_by_email(email: str) -> User | None:
@@ -31,6 +77,123 @@ def get_user_by_email(email: str) -> User | None:
     """
     with Session(autoflush=False, bind=engine) as db:
         return db.query(User).filter(User.email == email).first()
+
+
+def get_users_list(role: str | None = None, q: str | None = None) -> list[dict]:
+    with Session(autoflush=False, bind=engine) as db:
+        query = db.query(User)
+        if role:
+            query = query.filter(User.role == role)
+        if q:
+            q_like = f"%{q.lower()}%"
+            query = query.filter(
+                User.name.ilike(q_like)
+                | User.email.ilike(q_like)
+                | User.phone.ilike(q_like)
+                | User.role.ilike(q_like)
+            )
+
+        users = query.order_by(User.created_at.desc()).all()
+        return [
+            {
+                "id": u.id,
+                "name": u.name,
+                "email": u.email,
+                "phone": u.phone or "",
+                "role": u.role,
+                "created_at": u.created_at.isoformat() if u.created_at else None,
+            }
+            for u in users
+        ]
+
+
+def get_user_details_with_activity(user_id: int) -> dict | None:
+    with Session(autoflush=False, bind=engine) as db:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return None
+
+        reviews = (
+            db.query(Reviews)
+            .filter(Reviews.user_id == user.id)
+            .order_by(Reviews.created_at.desc())
+            .all()
+        )
+        reviews_result = [
+            {
+                "id": r.id,
+                "product_id": r.product_id,
+                "product_name": r.product.name if r.product else "",
+                "rating": float(r.rating),
+                "comment": r.comment or "",
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+            }
+            for r in reviews
+        ]
+
+        orders = (
+            db.query(Order)
+            .filter(Order.user_id == user.id)
+            .order_by(Order.created_at.desc())
+            .all()
+        )
+        orders_result: list[dict] = []
+        for order in orders:
+            status_name = None
+            if order.status and order.status.name is not None:
+                status_name = (
+                    order.status.name.value
+                    if isinstance(order.status.name, OrderStatusEnum)
+                    else str(order.status.name)
+                )
+            orders_result.append(
+                {
+                    "id": order.id,
+                    "user_id": order.user_id,
+                    "status": status_name,
+                    "delivery_type": order.delivery_type.name if order.delivery_type else None,
+                    "total_amount": float(order.total_amount),
+                    "payment_status": order.payment_status,
+                    "created_at": (
+                        order.created_at.isoformat() if order.created_at else None
+                    ),
+                }
+            )
+
+        return {
+            "id": user.id,
+            "email": user.email,
+            "phone": user.phone or "",
+            "name": user.name,
+            "role": user.role,
+            "created_at": user.created_at.isoformat() if user.created_at else None,
+            "reviews": reviews_result,
+            "orders": orders_result,
+        }
+
+
+def update_user_by_id(
+    user_id: int,
+    email: str | None = None,
+    name: str | None = None,
+    phone: str | None = None,
+    role: str | None = None,
+) -> User | None:
+    with Session(autoflush=False, bind=engine) as db:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return None
+        if email is not None and email.strip():
+            user.email = email.strip()
+        if name is not None and name.strip():
+            user.name = name.strip()
+        if phone is not None:
+            user.phone = phone.strip()
+        if role is not None and role.strip():
+            user.role = role.strip()
+        db.commit()
+        db.refresh(user)
+        return user
 
 
 def update_user_profile(
@@ -81,6 +244,32 @@ def create_user(
         db.add(new_user)
         db.commit()
         return True
+
+
+def create_user_with_role(
+    email: str,
+    password: str,
+    name: str,
+    role: str,
+    phone: str | None = None,
+) -> User | None:
+    hashed_password = hash_password(password)
+    phone_clean = (phone or "").strip()
+    with Session(autoflush=False, bind=engine) as db:
+        existing_user = db.query(User).filter(User.email == email).first()
+        if existing_user:
+            return None
+        new_user = User(
+            name=name,
+            email=email,
+            hashed_password=hashed_password,
+            phone=phone_clean if phone_clean else "",
+            role=(role or "user").strip() or "user",
+        )
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        return new_user
 
 
 def authenticate_user(email: str, password: str) -> None | User:
@@ -153,6 +342,7 @@ def get_all_products():
                     "name": p.name,
                     "brand": p.brand.name if p.brand else "",
                     "category_id": p.category_id,
+                    "rating": p.rating,
                     "price": float(p.price),
                     "discount": float(p.discount),
                     "image_url": main_img.image_url if main_img else "",
@@ -164,6 +354,12 @@ def get_all_products():
                 }
             )
         return result
+
+
+def get_all_brands() -> list[dict]:
+    with Session(autoflush=False, bind=engine) as db:
+        brands = db.query(Brand).order_by(Brand.name.asc()).all()
+        return [{"id": b.id, "name": b.name} for b in brands]
 
 
 def get_product_by_id(product_id: int):
@@ -223,7 +419,8 @@ def get_detailed_product_by_id(product_id: int):
         return {
             "id": p.id,
             "name": p.name,
-            "brand": p.brand,
+            "category_id": p.category_id,
+            "brand_id": p.brand_id,
             "price": float(p.price),
             "discount": float(p.discount),
             "image_url": main_img.image_url if main_img else "",
@@ -511,6 +708,172 @@ def filter_products(
         return result
 
 
+def update_product_by_id(
+    product_id: int,
+    category_id: int | None = None,
+    brand_id: int | None = None,
+    price: float | None = None,
+    name: str | None = None,
+    description: str | None = None,
+    specifications: str | None = None,
+    warranty: int | None = None,
+    color: str | None = None,
+    dimensions: str | None = None,
+    weight: str | None = None,
+    is_new: bool | None = None,
+    is_popular: bool | None = None,
+    discount: float | None = None,
+    quantity: int | None = None,
+) -> dict | None:
+    with Session(autoflush=False, bind=engine) as db:
+        product = db.query(Product).filter(Product.id == product_id).first()
+        if not product:
+            return None
+
+        if category_id is not None:
+            product.category_id = category_id
+        if brand_id is not None:
+            product.brand_id = brand_id
+        if price is not None:
+            product.price = price
+        if name is not None and name.strip():
+            product.name = name.strip()
+        if description is not None:
+            product.description = description.strip()
+        if specifications is not None:
+            product.specifications = specifications.strip()
+        if warranty is not None:
+            product.warranty = warranty
+        if color is not None:
+            product.color = color.strip()
+        if dimensions is not None:
+            product.dimensions = dimensions.strip()
+        if weight is not None:
+            product.weight = weight.strip()
+        if is_new is not None:
+            product.is_new = is_new
+        if is_popular is not None:
+            product.is_popular = is_popular
+        if discount is not None:
+            product.discount = discount
+        if quantity is not None:
+            product.quantity = quantity
+
+        db.commit()
+        db.refresh(product)
+        return get_detailed_product_by_id(product.id)
+
+
+def set_product_main_image_url(product_id: int, image_url: str) -> dict | None:
+    with Session(autoflush=False, bind=engine) as db:
+        product = db.query(Product).filter(Product.id == product_id).first()
+        if not product:
+            return None
+
+        main_img = (
+            db.query(ProductImages)
+            .filter(
+                ProductImages.product_id == product.id,
+                ProductImages.is_main == True,  # noqa: E712
+            )
+            .first()
+        )
+        if main_img:
+            main_img.image_url = image_url
+        else:
+            img = ProductImages(
+                product_id=product.id,
+                name=f"product_{product.id}_main_uploaded",
+                image_url=image_url,
+                is_main=True,
+            )
+            db.add(img)
+
+        db.commit()
+        return get_detailed_product_by_id(product.id)
+
+
+def clear_product_main_image_url(product_id: int) -> dict | None:
+    with Session(autoflush=False, bind=engine) as db:
+        product = db.query(Product).filter(Product.id == product_id).first()
+        if not product:
+            return None
+
+        main_img = (
+            db.query(ProductImages)
+            .filter(
+                ProductImages.product_id == product.id,
+                ProductImages.is_main == True,  # noqa: E712
+            )
+            .first()
+        )
+        if main_img:
+            main_img.image_url = ""
+        db.commit()
+        return get_detailed_product_by_id(product.id)
+
+
+def create_product(
+    category_id: int,
+    brand_id: int,
+    price: float,
+    name: str,
+    description: str,
+    specifications: str,
+    warranty: int,
+    color: str,
+    dimensions: str,
+    weight: str,
+    is_new: bool = False,
+    is_popular: bool = False,
+    discount: float = 0,
+    quantity: int = 0,
+    image_url: str | None = None,
+) -> dict | None:
+    with Session(autoflush=False, bind=engine) as db:
+        category = db.query(Category).filter(Category.id == category_id).first()
+        brand = db.query(Brand).filter(Brand.id == brand_id).first()
+        if not category or not brand:
+            return None
+        exists = db.query(Product).filter(Product.name == name.strip()).first()
+        if exists:
+            raise ValueError("product already exists")
+
+        product = Product(
+            category_id=category_id,
+            brand_id=brand_id,
+            price=price,
+            name=name.strip(),
+            description=(description or "").strip(),
+            specifications=(specifications or "").strip(),
+            warranty=warranty,
+            color=(color or "").strip(),
+            dimensions=(dimensions or "").strip(),
+            weight=(weight or "").strip(),
+            is_new=is_new,
+            is_popular=is_popular,
+            discount=discount,
+            quantity=quantity,
+            rating=0,
+            reviews_count=0,
+            sold_count=0,
+        )
+        db.add(product)
+        db.flush()
+
+        if image_url:
+            img = ProductImages(
+                product_id=product.id,
+                name=f"product_{product.id}_main_created",
+                image_url=image_url,
+                is_main=True,
+            )
+            db.add(img)
+
+        db.commit()
+        return get_detailed_product_by_id(product.id)
+
+
 def add_product_to_cart_for_user(
     user: User, product_id: int, quantity: int = 1
 ) -> Cart:
@@ -615,7 +978,7 @@ def _order_checkout_payload(order: Order) -> dict:
         "status_id": order.status_id,
         "total_amount": float(order.total_amount),
         "created_at": order.created_at,
-        "delivery_at": order.delivery_at,
+        "estimated_delivery_at": order.estimated_delivery_at,
         "delivery_comment": order.delivery_comment,
         "payment_status": order.payment_status,
         "payment_method": order.payment_method,
@@ -706,7 +1069,7 @@ def create_order_from_cart(
             pickup_point_id=order_pickup_point_id,
             phone=phone,
             total_amount=0,
-            delivery_at=None,
+            estimated_delivery_at=None,
             delivery_comment=delivery_comment,
             payment_method=payment_method,
             payment_status=payment_status,
@@ -715,7 +1078,7 @@ def create_order_from_cart(
         db.add(order)
         db.flush()  # get order.id
         if order.created_at is not None:
-            order.delivery_at = order.created_at + timedelta(days=estimated_days)
+            order.estimated_delivery_at = order.created_at + timedelta(days=estimated_days)
 
         total = 0
         sorted_cart = sorted(cart_items, key=lambda r: r.product_id)
@@ -889,6 +1252,7 @@ def get_orders_for_user(user: User) -> list[dict]:
             result.append(
                 {
                     "id": order.id,
+                    "user_id": order.user_id,
                     "status": status_name,
                     "delivery_type": delivery_name,
                     "shipping_address": order.shipping_address,
@@ -897,8 +1261,10 @@ def get_orders_for_user(user: User) -> list[dict]:
                     "created_at": (
                         order.created_at.isoformat() if order.created_at else None
                     ),
-                    "delivery_at": (
-                        order.delivery_at.isoformat() if order.delivery_at else None
+                    "estimated_delivery_at": (
+                        order.estimated_delivery_at.isoformat()
+                        if order.estimated_delivery_at
+                        else None
                     ),
                     "delivery_comment": order.delivery_comment,
                     "canceled_at": (
@@ -909,6 +1275,53 @@ def get_orders_for_user(user: User) -> list[dict]:
                     "paid_at": (
                         order.paid_at.isoformat() if order.paid_at else None
                     ),
+                }
+            )
+        return result
+
+
+def get_all_orders() -> list[dict]:
+    with Session(autoflush=False, bind=engine) as db:
+        orders = db.query(Order).order_by(Order.created_at.desc()).all()
+
+        result: list[dict] = []
+        for order in orders:
+            status_name = None
+            if order.status and order.status.name is not None:
+                status_name = (
+                    order.status.name.value
+                    if isinstance(order.status.name, OrderStatusEnum)
+                    else str(order.status.name)
+                )
+            delivery_name = order.delivery_type.name if order.delivery_type else None
+            customer_name = order.user.name if order.user else ""
+            customer_email = order.user.email if order.user else ""
+            result.append(
+                {
+                    "id": order.id,
+                    "user_id": order.user_id,
+                    "customer_name": customer_name,
+                    "customer_email": customer_email,
+                    "status": status_name,
+                    "delivery_type": delivery_name,
+                    "shipping_address": order.shipping_address,
+                    "phone": order.phone,
+                    "total_amount": float(order.total_amount),
+                    "created_at": (
+                        order.created_at.isoformat() if order.created_at else None
+                    ),
+                    "estimated_delivery_at": (
+                        order.estimated_delivery_at.isoformat()
+                        if order.estimated_delivery_at
+                        else None
+                    ),
+                    "delivery_comment": order.delivery_comment,
+                    "canceled_at": (
+                        order.canceled_at.isoformat() if order.canceled_at else None
+                    ),
+                    "payment_status": order.payment_status,
+                    "payment_method": order.payment_method,
+                    "paid_at": order.paid_at.isoformat() if order.paid_at else None,
                 }
             )
         return result
@@ -953,7 +1366,18 @@ def get_order_detail_for_user(user: User, order_id: int) -> dict:
             "phone": order.phone,
             "total_amount": float(order.total_amount),
             "created_at": order.created_at.isoformat() if order.created_at else None,
-            "delivery_at": order.delivery_at.isoformat() if order.delivery_at else None,
+            "processed_at": order.processed_at.isoformat() if order.processed_at else None,
+            "shipped_at": order.shipped_at.isoformat() if order.shipped_at else None,
+            "ready_for_pickup_at": (
+                order.ready_for_pickup_at.isoformat() if order.ready_for_pickup_at else None
+            ),
+            "delivered_at": order.delivered_at.isoformat() if order.delivered_at else None,
+            "pickup_at": order.pickup_at.isoformat() if order.pickup_at else None,
+            "estimated_delivery_at": (
+                order.estimated_delivery_at.isoformat()
+                if order.estimated_delivery_at
+                else None
+            ),
             "delivery_comment": order.delivery_comment,
             "canceled_at": (
                 order.canceled_at.isoformat() if order.canceled_at else None
@@ -977,3 +1401,199 @@ def get_order_detail_for_user_email(user_email: str, order_id: int) -> dict:
     if not user:
         raise ValueError("user not found")
     return get_order_detail_for_user(user, order_id)
+
+
+def get_order_detail_by_id(order_id: int) -> dict:
+    with Session(autoflush=False, bind=engine) as db:
+        order = db.query(Order).filter(Order.id == order_id).first()
+        if not order:
+            raise ValueError("order not found")
+
+        items: list[dict] = []
+        for it in order.items:
+            items.append(
+                {
+                    "product_id": it.product_id,
+                    "product_name": it.product.name if it.product else "",
+                    "product_image_url": _get_product_main_image_url(db, it.product_id),
+                    "quantity": it.quantity,
+                    "price": float(it.price),
+                    "line_total": float(it.price) * it.quantity,
+                }
+            )
+
+        status_name = (
+            order.status.name.value
+            if order.status and isinstance(order.status.name, OrderStatusEnum)
+            else (str(order.status.name) if order.status and order.status.name else None)
+        )
+        return {
+            "id": order.id,
+            "user_id": order.user_id,
+            "status": status_name,
+            "delivery_type_id": order.delivery_type_id,
+            "delivery_type": order.delivery_type.name if order.delivery_type else None,
+            "shipping_address": order.shipping_address,
+            "phone": order.phone,
+            "city_id": order.city_id,
+            "pickup_point_id": order.pickup_point_id,
+            "total_amount": float(order.total_amount),
+            "created_at": order.created_at.isoformat() if order.created_at else None,
+            "processed_at": order.processed_at.isoformat() if order.processed_at else None,
+            "shipped_at": order.shipped_at.isoformat() if order.shipped_at else None,
+            "ready_for_pickup_at": (
+                order.ready_for_pickup_at.isoformat() if order.ready_for_pickup_at else None
+            ),
+            "delivered_at": order.delivered_at.isoformat() if order.delivered_at else None,
+            "pickup_at": order.pickup_at.isoformat() if order.pickup_at else None,
+            "estimated_delivery_at": (
+                order.estimated_delivery_at.isoformat()
+                if order.estimated_delivery_at
+                else None
+            ),
+            "delivery_comment": order.delivery_comment,
+            "canceled_at": order.canceled_at.isoformat() if order.canceled_at else None,
+            "payment_status": order.payment_status,
+            "payment_method": order.payment_method,
+            "paid_at": order.paid_at.isoformat() if order.paid_at else None,
+            "items": items,
+        }
+
+
+def get_order_statuses() -> list[dict]:
+    with Session(autoflush=False, bind=engine) as db:
+        statuses = db.query(Status).order_by(Status.id.asc()).all()
+        return [
+            {
+                "id": s.id,
+                "name": s.name.value if isinstance(s.name, OrderStatusEnum) else str(s.name),
+            }
+            for s in statuses
+        ]
+
+
+def get_order_statuses_for_delivery(
+    delivery_type_id: int,
+    *,
+    current_status_value: str | None = None,
+) -> list[dict]:
+    with Session(autoflush=False, bind=engine) as db:
+        dt = db.query(DeliveryType).filter(DeliveryType.id == delivery_type_id).first()
+        if not dt:
+            raise ValueError("delivery type not found")
+        pickup = "Самовывоз" in (dt.name or "")
+        flow = list(_ORDER_STATUS_FLOW_PICKUP if pickup else _ORDER_STATUS_FLOW_COURIER)
+        flow.append(OrderStatusEnum.canceled)
+        allowed = set(flow)
+        rows = db.query(Status).all()
+        by_enum: dict[OrderStatusEnum, Status] = {}
+        for s in rows:
+            if isinstance(s.name, OrderStatusEnum) and s.name in allowed:
+                by_enum[s.name] = s
+        out: list[dict] = []
+        for e in flow:
+            if e in by_enum:
+                st = by_enum[e]
+                out.append(
+                    {
+                        "id": st.id,
+                        "name": st.name.value if isinstance(st.name, OrderStatusEnum) else str(st.name),
+                    }
+                )
+        present_ids = {row["id"] for row in out}
+        if current_status_value:
+            key = (current_status_value or "").strip().lower()
+            try:
+                cur = OrderStatusEnum(key)
+            except ValueError:
+                cur = None
+            if cur is not None:
+                st = next(
+                    (s for s in rows if isinstance(s.name, OrderStatusEnum) and s.name == cur),
+                    None,
+                )
+                if st is not None and st.id not in present_ids:
+                    out.append(
+                        {
+                            "id": st.id,
+                            "name": st.name.value
+                            if isinstance(st.name, OrderStatusEnum)
+                            else str(st.name),
+                        }
+                    )
+        return out
+
+
+def update_order_by_id(
+    order_id: int,
+    *,
+    status_id: int | None = None,
+    delivery_type_id: int | None = None,
+    shipping_address: str | None = None,
+    phone: str | None = None,
+    city_id: int | None = None,
+    pickup_point_id: int | None = None,
+    payment_status: str | None = None,
+    payment_method: str | None = None,
+) -> dict:
+    with Session(autoflush=False, bind=engine) as db:
+        order = (
+            db.query(Order)
+            .options(joinedload(Order.delivery_type), joinedload(Order.status))
+            .filter(Order.id == order_id)
+            .first()
+        )
+        if not order:
+            raise ValueError("order not found")
+
+        now_utc = datetime.now(timezone.utc)
+        now_naive = now_utc.replace(tzinfo=None)
+
+        if delivery_type_id is not None:
+            delivery_type = (
+                db.query(DeliveryType).filter(DeliveryType.id == delivery_type_id).first()
+            )
+            if not delivery_type:
+                raise ValueError("delivery type not found")
+            order.delivery_type_id = delivery_type_id
+            order.delivery_type = delivery_type
+        if shipping_address is not None:
+            order.shipping_address = shipping_address
+        if phone is not None:
+            order.phone = phone
+        order.city_id = city_id
+        order.pickup_point_id = pickup_point_id
+        if status_id is not None and status_id != order.status_id:
+            status = db.query(Status).filter(Status.id == status_id).first()
+            if not status:
+                raise ValueError("status not found")
+            _validate_status_change(order, status)
+            order.status_id = status_id
+            status_name = (
+                status.name.value if isinstance(status.name, OrderStatusEnum) else str(status.name)
+            )
+            if status_name == OrderStatusEnum.processing.value:
+                order.processed_at = now_naive
+            elif status_name == OrderStatusEnum.shipped.value:
+                order.shipped_at = now_naive
+            elif status_name == OrderStatusEnum.ready_for_pickup.value:
+                order.ready_for_pickup_at = now_naive
+            elif status_name == OrderStatusEnum.delivered.value:
+                order.delivered_at = now_naive
+            elif status_name == OrderStatusEnum.pickup.value:
+                order.pickup_at = now_naive
+            elif status_name == OrderStatusEnum.canceled.value:
+                order.canceled_at = now_naive
+        if payment_status is not None:
+            ps = (payment_status or "").strip().lower()
+            order.payment_status = ps
+            if ps == "paid":
+                order.paid_at = now_naive
+            else:
+                order.paid_at = None
+        if payment_method is not None:
+            order.payment_method = payment_method
+
+        db.commit()
+
+    return get_order_detail_by_id(order_id)

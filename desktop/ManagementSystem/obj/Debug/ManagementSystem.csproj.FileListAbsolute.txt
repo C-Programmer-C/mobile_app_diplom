@@ -1,0 +1,17 @@
+D:\mobile\mobile_app_diplom\desktop\ManagementSystem\bin\Debug\ManagementSystem.exe.config
+D:\mobile\mobile_app_diplom\desktop\ManagementSystem\bin\Debug\ManagementSystem.exe
+D:\mobile\mobile_app_diplom\desktop\ManagementSystem\bin\Debug\ManagementSystem.pdb
+D:\mobile\mobile_app_diplom\desktop\ManagementSystem\obj\Debug\ManagementSystem.csproj.AssemblyReference.cache
+D:\mobile\mobile_app_diplom\desktop\ManagementSystem\obj\Debug\ManagementSystem.Properties.Resources.resources
+D:\mobile\mobile_app_diplom\desktop\ManagementSystem\obj\Debug\ManagementSystem.csproj.GenerateResource.cache
+D:\mobile\mobile_app_diplom\desktop\ManagementSystem\obj\Debug\ManagementSystem.csproj.CoreCompileInputs.cache
+D:\mobile\mobile_app_diplom\desktop\ManagementSystem\obj\Debug\ManagementSystem.exe
+D:\mobile\mobile_app_diplom\desktop\ManagementSystem\obj\Debug\ManagementSystem.pdb
+D:\mobile\mobile_app_diplom\desktop\ManagementSystem\obj\Debug\ManagementSystem.AuthForm.resources
+D:\mobile\mobile_app_diplom\desktop\ManagementSystem\obj\Debug\ManagementSystem.MenuForm.resources
+D:\mobile\mobile_app_diplom\desktop\ManagementSystem\obj\Debug\ManagementSystem.ClientsForm.resources
+D:\mobile\mobile_app_diplom\desktop\ManagementSystem\obj\Debug\ManagementSystem.OrdersForm.resources
+D:\mobile\mobile_app_diplom\desktop\ManagementSystem\obj\Debug\ManagementSystem.ProductsForm.resources
+D:\mobile\mobile_app_diplom\desktop\ManagementSystem\obj\Debug\ManagementSystem.DetailViews.OrderForm.resources
+D:\mobile\mobile_app_diplom\desktop\ManagementSystem\obj\Debug\ManagementSystem.DetailViews.ProductForm.resources
+D:\mobile\mobile_app_diplom\desktop\ManagementSystem\obj\Debug\ManagementSystem.DetailViews.UserForm.resources

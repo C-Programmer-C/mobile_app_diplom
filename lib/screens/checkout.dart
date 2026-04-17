@@ -300,7 +300,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       CartSync.notifyChanged();
       if (!mounted) return;
 
-      final deliveryAtText = orderResponse['delivery_at']?.toString();
+      final deliveryAtText = orderResponse['estimated_delivery_at']?.toString() ??
+          orderResponse['delivery_at']?.toString();
       DateTime? deliveryAt;
       if (deliveryAtText != null && deliveryAtText.isNotEmpty) {
         deliveryAt = DateTime.tryParse(deliveryAtText)?.toLocal();

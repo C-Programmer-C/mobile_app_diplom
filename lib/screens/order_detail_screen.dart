@@ -128,7 +128,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     final deliveryType = order['delivery_type']?.toString() ?? '';
     final shippingAddress = order['shipping_address']?.toString() ?? '';
     final deliveryAt = DateTime.tryParse(
-      order['delivery_at']?.toString() ?? '',
+      order['estimated_delivery_at']?.toString() ??
+          order['delivery_at']?.toString() ??
+          '',
     )?.toLocal();
     final phone = order['phone']?.toString() ?? '';
     final paymentStatus = order['payment_status']?.toString();

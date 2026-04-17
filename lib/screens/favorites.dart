@@ -4,6 +4,7 @@ import 'package:mobile_app/models/cart_item.dart';
 import 'package:mobile_app/models/product.dart';
 import 'package:mobile_app/screens/login.dart';
 import 'package:mobile_app/screens/product_card.dart';
+import 'package:mobile_app/services/auth_service.dart';
 import 'package:mobile_app/services/cart_sync.dart';
 import 'package:mobile_app/widgets/server_error_view.dart';
 
@@ -24,6 +25,8 @@ class _FavoritesPlaceholderScreenState
   bool _showPopular = false;
   bool _showHighRating = false;
   bool _showBigDiscount = false;
+
+
 
   @override
   void initState() {
@@ -47,11 +50,6 @@ class _FavoritesPlaceholderScreenState
 
   Future<void> reload() async {
     setState(() {});
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
   }
 
   List<Product> _applyLocalFilter(List<Product> products) {
@@ -334,9 +332,12 @@ class _FavoritesPlaceholderScreenState
       );
     }
 
-    return ValueListenableBuilder<int>(
-      valueListenable: CartSync.listenable,
-      builder: (context, _, _) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([
+        AuthService.sessionEpoch,
+        CartSync.listenable,
+      ]),
+      builder: (context, _) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

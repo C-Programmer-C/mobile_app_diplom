@@ -11,7 +11,7 @@ String orderStatusRu(String? raw) {
     case 'delivered':
       return 'Доставлен';
     case 'pickup':
-      return 'Самовывоз';
+      return 'Выдан';
     case 'ready_for_pickup':
       return 'Готов к выдаче';
     case 'canceled':

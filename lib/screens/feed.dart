@@ -4,6 +4,7 @@ import 'package:mobile_app/models/cart_item.dart';
 import 'package:mobile_app/models/product.dart';
 import 'package:mobile_app/screens/product_card.dart';
 import 'package:mobile_app/services/auth_service.dart';
+import 'package:mobile_app/services/cart_sync.dart';
 import 'package:mobile_app/utils/error_message.dart';
 import 'package:mobile_app/widgets/server_error_view.dart';
 
@@ -27,6 +28,9 @@ class _FeedScreenState extends State<FeedScreen> {
   int? _searchCategoryId;
   List<Map<String, dynamic>> _categories = [];
   bool _loadingCategories = true;
+
+ 
+  
 
   Future<void> _loadCategories() async {
     try {
@@ -351,9 +355,17 @@ class _FeedScreenState extends State<FeedScreen> {
           ),
         ),
         Expanded(
-          child: hasQuery || hasActiveFilters
-              ? _buildSearchResultsBody()
-              : _buildFeedHome(),
+          child: AnimatedBuilder(
+            animation: Listenable.merge([
+              AuthService.sessionEpoch,
+              CartSync.listenable,
+            ]),
+            builder: (context, _) {
+              return hasQuery || hasActiveFilters
+                  ? _buildSearchResultsBody()
+                  : _buildFeedHome();
+            },
+          ),
         ),
       ],
     );
@@ -387,7 +399,7 @@ class _FeedScreenState extends State<FeedScreen> {
     const bottomSectionHeight = 140.0;
     const tileHeight = imageHeight + bottomSectionHeight;
 
-    final isLoggedIn = AuthService.currentUserName != null;
+    final isLoggedIn = ApiService.isAuthorized;
     return FutureBuilder<List<dynamic>>(
       future: Future.wait([
         _searchQuery.isNotEmpty
@@ -528,7 +540,7 @@ class _CarouselBlock extends StatelessWidget {
               }
               final list = snapshot.data!;
               final show = list.length > 20 ? list.sublist(0, 20) : list;
-              final isLoggedIn = AuthService.currentUserName != null;
+              final isLoggedIn = ApiService.isAuthorized;
               return FutureBuilder<List<dynamic>>(
                 future: Future.wait([
                   if (isLoggedIn)

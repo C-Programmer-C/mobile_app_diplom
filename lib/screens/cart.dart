@@ -4,6 +4,7 @@ import 'package:mobile_app/models/cart_item.dart';
 import 'package:mobile_app/models/product.dart';
 import 'package:mobile_app/screens/checkout.dart';
 import 'package:mobile_app/screens/login.dart';
+import 'package:mobile_app/screens/product_detail.dart';
 import 'package:mobile_app/services/auth_service.dart';
 import 'package:mobile_app/services/cart_sync.dart';
 import 'package:mobile_app/widgets/server_error_view.dart';
@@ -33,7 +34,6 @@ class _CartScreenState extends State<CartScreen> {
     CartSync.listenable.addListener(_cartSyncListener);
     _sessionListener = () {
       if (!mounted) return;
-      if (!ApiService.isAuthorized) return;
       if (_isMutating) return;
       _refresh();
     };
@@ -350,6 +350,31 @@ class _CartScreenState extends State<CartScreen> {
                                         ),
                                       ),
                                     ],
+                                  ),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton(
+                                      onPressed: () {
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                ProductDetailScreen(
+                                                  product: product,
+                                                ),
+                                          ),
+                                        );
+                                      },
+                                      style: TextButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        minimumSize: const Size(0, 36),
+                                        tapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
+                                      ),
+                                      child: const Text('Подробнее'),
+                                    ),
                                   ),
                                 ],
                               ),

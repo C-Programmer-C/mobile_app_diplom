@@ -66,7 +66,9 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
               final deliveryType = o['delivery_type']?.toString() ?? '';
               final shippingAddress = o['shipping_address']?.toString() ?? '';
               final deliveryAt = DateTime.tryParse(
-                o['delivery_at']?.toString() ?? '',
+                o['estimated_delivery_at']?.toString() ??
+                    o['delivery_at']?.toString() ??
+                    '',
               )?.toLocal();
               final totalAmount = (o['total_amount'] as num?)?.toDouble() ?? 0;
               final payStatus = o['payment_status']?.toString();

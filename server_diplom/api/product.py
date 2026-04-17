@@ -1,15 +1,22 @@
 from typing import Optional
+from pathlib import Path
+from uuid import uuid4
 
 from config import settings
 from database.auth import (
     add_review_for_product,
+    clear_product_main_image_url,
+    create_product,
+    get_all_brands,
     get_all_products,
     get_detailed_product_by_id,
     get_product_by_id,
     get_product_reviews,
     get_similar_products,
+    set_product_main_image_url,
+    update_product_by_id,
 )
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from models.user import User
@@ -78,6 +85,11 @@ def read_categories():
 
     categories = get_all_categories()
     return categories
+
+
+@product_router.get("/brands", summary="Получить все бренды")
+def read_brands():
+    return get_all_brands()
 
 
 @product_router.get("/filter", summary="Фильтрация товаров")
@@ -159,6 +171,132 @@ def create_product_review(
             )
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     return review
+
+
+@product_router.patch("/{product_id}", summary="Обновить товар (admin)")
+def patch_product(
+    product_id: int,
+    payload: dict,
+    current_user: User = Depends(_get_current_user),
+):
+    if current_user.role not in {"admin", "staff"}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="admin or staff only",
+        )
+    product = update_product_by_id(
+        product_id=product_id,
+        category_id=payload.get("category_id"),
+        brand_id=payload.get("brand_id"),
+        price=payload.get("price"),
+        name=payload.get("name"),
+        description=payload.get("description"),
+        specifications=payload.get("specifications"),
+        warranty=payload.get("warranty"),
+        color=payload.get("color"),
+        dimensions=payload.get("dimensions"),
+        weight=payload.get("weight"),
+        is_new=payload.get("is_new"),
+        is_popular=payload.get("is_popular"),
+        discount=payload.get("discount"),
+        quantity=payload.get("quantity"),
+    )
+    if not product:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+    return product
+
+
+@product_router.post("/", summary="Создать товар (admin)")
+def post_product(
+    payload: dict,
+    current_user: User = Depends(_get_current_user),
+):
+    if current_user.role not in {"admin", "staff"}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="admin or staff only",
+        )
+    try:
+        product = create_product(
+            category_id=int(payload.get("category_id")),
+            brand_id=int(payload.get("brand_id")),
+            price=float(payload.get("price") or 0),
+            name=str(payload.get("name") or ""),
+            description=str(payload.get("description") or ""),
+            specifications=str(payload.get("specifications") or ""),
+            warranty=int(payload.get("warranty") or 0),
+            color=str(payload.get("color") or ""),
+            dimensions=str(payload.get("dimensions") or ""),
+            weight=str(payload.get("weight") or ""),
+            is_new=bool(payload.get("is_new")),
+            is_popular=bool(payload.get("is_popular")),
+            discount=float(payload.get("discount") or 0),
+            quantity=int(payload.get("quantity") or 0),
+            image_url=payload.get("image_url"),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    if not product:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid payload")
+    return product
+
+
+@product_router.post("/{product_id}/image", summary="Загрузить главное изображение товара (admin)")
+async def upload_product_image(
+    product_id: int,
+    file: UploadFile = File(...),
+    current_user: User = Depends(_get_current_user),
+):
+    if current_user.role not in {"admin", "staff"}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="admin or staff only",
+        )
+    uploads_dir = Path("static/products")
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+
+    original_name = file.filename or "image"
+    suffix = Path(original_name).suffix.lower() or ".jpg"
+    filename = f"product_{product_id}_{uuid4().hex}{suffix}"
+    target_path = uploads_dir / filename
+    content = await file.read()
+    target_path.write_bytes(content)
+
+    image_url = f"http://127.0.0.1:8000/static/products/{filename}"
+    product = set_product_main_image_url(product_id, image_url)
+    if not product:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+    return product
+
+
+@product_router.delete("/{product_id}/image", summary="Удалить главное изображение товара (admin)")
+def delete_product_image(
+    product_id: int,
+    current_user: User = Depends(_get_current_user),
+):
+    if current_user.role not in {"admin", "staff"}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="admin or staff only",
+        )
+    product = get_detailed_product_by_id(product_id)
+    if not product:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+
+    old_url = str(product.get("image_url") or "")
+    old_prefix = "http://127.0.0.1:8000/static/products/"
+    if old_url.startswith(old_prefix):
+        filename = old_url.replace(old_prefix, "", 1)
+        file_path = Path("static/products") / filename
+        if file_path.exists():
+            file_path.unlink()
+
+    updated = clear_product_main_image_url(product_id)
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+    return updated
 
 
 @product_router.get("/{product_id}/similar", summary="Получить похожие товары")

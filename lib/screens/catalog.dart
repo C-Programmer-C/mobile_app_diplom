@@ -15,6 +15,7 @@ class CatalogScreen extends StatefulWidget {
   State<CatalogScreen> createState() => _CatalogScreenState();
 }
 
+
 class _CatalogScreenState extends State<CatalogScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
@@ -26,6 +27,8 @@ class _CatalogScreenState extends State<CatalogScreen> {
   List<Map<String, dynamic>> _categories = [];
   bool _isLoadingCategories = true;
   String? _categoriesError;
+
+
 
   IconData _categoryIcon(String slug) {
     switch (slug) {
@@ -336,7 +339,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
     const bottomSectionHeight = 140.0;
     final tileHeight = imageHeight + bottomSectionHeight;
 
-    final isLoggedIn = AuthService.currentUserName != null;
+    final isLoggedIn = ApiService.isAuthorized;
 
     final showFilter = _selectedCategoryId != null;
     final showCategoryCards = _selectedCategoryId == null && _searchQuery.isEmpty;
@@ -495,9 +498,12 @@ class _CatalogScreenState extends State<CatalogScreen> {
           )
         else
         Expanded(
-          child: ValueListenableBuilder<int>(
-            valueListenable: CartSync.listenable,
-            builder: (context, _, _) {
+          child: AnimatedBuilder(
+            animation: Listenable.merge([
+              AuthService.sessionEpoch,
+              CartSync.listenable,
+            ]),
+            builder: (context, _) {
               return FutureBuilder<List<dynamic>>(
                 future: Future.wait([
                   _searchQuery.isNotEmpty
