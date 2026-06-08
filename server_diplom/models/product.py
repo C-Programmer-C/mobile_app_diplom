@@ -6,7 +6,6 @@ from sqlalchemy.orm import relationship
 
 class Product(Base):
     __tablename__ = "products"
-
     id = Column(Integer, primary_key=True, index=True)
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
     category = relationship("Category", back_populates="products")
@@ -33,3 +32,9 @@ class Product(Base):
     order_items = relationship("OrderItem", back_populates="product")
     product_images = relationship("ProductImages", back_populates="product")
     reviews = relationship("Reviews", back_populates="product")
+    
+    
+    
+    
+    
+    

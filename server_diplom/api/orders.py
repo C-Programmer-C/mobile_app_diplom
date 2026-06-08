@@ -1,6 +1,7 @@
 import re
 from datetime import datetime, timezone
 from typing import Literal
+from threading import Lock
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -13,11 +14,14 @@ from database.auth import (
     get_order_statuses,
     get_order_statuses_for_delivery,
     get_user_by_email,
+    get_cart_items_for_user,
     update_order_by_id,
 )
 
-
 orders_router = APIRouter(prefix="/orders", tags=["orders"])
+
+# Per-process locks to avoid concurrent checkouts for the same user
+_checkout_locks: dict[int, Lock] = {}
 
 
 def _card_digits_only(card_pan: str | None) -> str:
@@ -43,53 +47,101 @@ class CheckoutIn(BaseModel):
 def checkout(data: CheckoutIn, user_email: str = Depends(get_current_user_email)):
     user = get_user_by_email(user_email)
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
+    
+    uid = getattr(user, "id", None)
+    if uid is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="invalid user id"
+        )
 
-    now = datetime.now(timezone.utc)
-    if data.payment_method == "card":
-        digits = _card_digits_only(data.card_pan)
-        if not _card_pan_length_ok(digits):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Некорректный номер карты (нужно 13–19 цифр)",
-            )
-        payment_status = "paid"
-        paid_at = now
-        payment_method = "card"
-    else:
-        payment_status = "pending"
-        paid_at = None
-        payment_method = "cash"
+    lock = _checkout_locks.setdefault(uid, Lock())
+    if not lock.acquire(blocking=False):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Another checkout in progress for this user",
+        )
 
     try:
-        return create_order_from_cart(
-            user=user,
-            delivery_type_id=data.delivery_type_id,
-            city_id=data.city_id,
-            shipping_address=data.shipping_address,
-            phone=data.phone,
-            pickup_point_id=data.pickup_point_id,
-            product_ids=data.product_ids,
-            payment_method=payment_method,
-            payment_status=payment_status,
-            paid_at=paid_at,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        # basic payment parsing
+        now = datetime.now(timezone.utc)
+        if data.payment_method == "card":
+            digits = _card_digits_only(data.card_pan)
+            if not _card_pan_length_ok(digits):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Некорректный номер карты (нужно 13–19 цифр)",
+                )
+            payment_status = "paid"
+            paid_at = now
+            payment_method = "card"
+        else:
+            payment_status = "pending"
+            paid_at = None
+            payment_method = "cash"
+
+        # validate cart contents (no negative/zero quantities and product_ids filter)
+        cart_items = get_cart_items_for_user(user)
+        if data.product_ids:
+            wanted = set(data.product_ids)
+            cart_items = [c for c in cart_items if c.product_id in wanted]
+
+        if not cart_items:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="cart is empty"
+            )
+
+        for c in cart_items:
+            if getattr(c, "quantity", 0) <= 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="invalid cart item quantity",
+                )
+
+        try:
+            return create_order_from_cart(
+                user=user,
+                delivery_type_id=data.delivery_type_id,
+                city_id=data.city_id,
+                shipping_address=data.shipping_address,
+                phone=data.phone,
+                pickup_point_id=data.pickup_point_id,
+                product_ids=data.product_ids,
+                payment_method=payment_method,
+                payment_status=payment_status,
+                paid_at=paid_at,
+            )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+            ) from exc
+    finally:
+        try:
+            lock.release()
+        except RuntimeError:
+            pass
 
 
 @orders_router.post("/{order_id}/cancel", summary="Cancel order")
 def cancel_order(order_id: int, user_email: str = Depends(get_current_user_email)):
     user = get_user_by_email(user_email)
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
 
     try:
         return cancel_order_for_user(user, order_id)
     except PermissionError as exc:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)
+        ) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
 
 
 @orders_router.get("/meta/delivery_types", summary="Delivery types")
@@ -126,7 +178,9 @@ def statuses_meta(
             current_status_value=current_status,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
 
 
 @orders_router.get("/me", summary="My orders")
@@ -142,7 +196,9 @@ def all_orders(user_email: str = Depends(get_current_user_email)):
 
     user = get_user_by_email(user_email)
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
     if user.role not in {"admin", "staff"}:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -157,22 +213,32 @@ def order_detail(order_id: int, user_email: str = Depends(get_current_user_email
 
     user = get_user_by_email(user_email)
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
     try:
         if user.role in {"admin", "staff"}:
             return get_order_detail_by_id(order_id)
         return get_order_detail_for_user_email(user_email, order_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
 
 
 @orders_router.patch("/{order_id}", summary="Update order (admin/staff)")
-def patch_order(order_id: int, payload: dict, user_email: str = Depends(get_current_user_email)):
+def patch_order(
+    order_id: int, payload: dict, user_email: str = Depends(get_current_user_email)
+):
     user = get_user_by_email(user_email)
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
     if user.role not in {"admin", "staff"}:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="insufficient permissions")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="insufficient permissions"
+        )
     try:
         return update_order_by_id(
             order_id=order_id,
@@ -186,5 +252,6 @@ def patch_order(order_id: int, payload: dict, user_email: str = Depends(get_curr
             payment_method=payload.get("payment_method"),
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc

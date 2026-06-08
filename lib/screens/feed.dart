@@ -28,9 +28,7 @@ class _FeedScreenState extends State<FeedScreen> {
   int? _searchCategoryId;
   List<Map<String, dynamic>> _categories = [];
   bool _loadingCategories = true;
-
- 
-  
+  final bool _debugForceOffline = false;
 
   Future<void> _loadCategories() async {
     try {
@@ -69,186 +67,194 @@ class _FeedScreenState extends State<FeedScreen> {
             child: SizedBox(
               height: MediaQuery.of(context).size.height * 0.72,
               child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Фильтры',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Сортировка',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  children: [
-                    FilterChip(
-                      label: const Text('Дешевле'),
-                      selected: _searchSort == 'price_asc',
-                      onSelected: (v) {
-                        setModalState(() => _searchSort = v ? 'price_asc' : null);
-                        setState(() => _searchSort = v ? 'price_asc' : null);
-                      },
-                    ),
-                    FilterChip(
-                      label: const Text('Дороже'),
-                      selected: _searchSort == 'price_desc',
-                      onSelected: (v) {
-                        setModalState(() => _searchSort = v ? 'price_desc' : null);
-                        setState(() => _searchSort = v ? 'price_desc' : null);
-                      },
-                    ),
-                    FilterChip(
-                      label: const Text('Рейтинг'),
-                      selected: _searchSort == 'rating',
-                      onSelected: (v) {
-                        setModalState(() => _searchSort = v ? 'rating' : null);
-                        setState(() => _searchSort = v ? 'rating' : null);
-                      },
-                    ),
-                    FilterChip(
-                      label: const Text('Новинки'),
-                      selected: _searchSort == 'newest',
-                      onSelected: (v) {
-                        setModalState(() => _searchSort = v ? 'newest' : null);
-                        setState(() => _searchSort = v ? 'newest' : null);
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Показать только',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  children: [
-                    FilterChip(
-                      label: const Text('Популярное'),
-                      selected: _searchShowPopular,
-                      onSelected: (v) {
-                        setModalState(() => _searchShowPopular = v);
-                        setState(() => _searchShowPopular = v);
-                      },
-                    ),
-                    FilterChip(
-                      label: const Text('Высокий рейтинг'),
-                      selected: _searchShowHighRating,
-                      onSelected: (v) {
-                        setModalState(() => _searchShowHighRating = v);
-                        setState(() => _searchShowHighRating = v);
-                      },
-                    ),
-                    FilterChip(
-                      label: const Text('Большие скидки'),
-                      selected: _searchShowBigDiscount,
-                      onSelected: (v) {
-                        setModalState(() => _searchShowBigDiscount = v);
-                        setState(() => _searchShowBigDiscount = v);
-                      },
-                    ),
-                    FilterChip(
-                      label: const Text('Только в наличии'),
-                      selected: _searchShowInStock,
-                      onSelected: (v) {
-                        setModalState(() => _searchShowInStock = v);
-                        setState(() => _searchShowInStock = v);
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Категория',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                if (_loadingCategories)
-                  const Padding(
-                    padding: EdgeInsets.all(12),
-                    child: CircularProgressIndicator(),
-                  )
-                else
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Wrap(
-                        spacing: 8,
-                        runSpacing: 4,
-                        children: [
-                          FilterChip(
-                            label: const Text('Все категории'),
-                            selected: _searchCategoryId == null,
-                            onSelected: (selected) {
-                              if (selected) {
-                                setModalState(() => _searchCategoryId = null);
-                                setState(() => _searchCategoryId = null);
-                              }
-                            },
-                          ),
-                          ..._categories.map((c) {
-                            final id = (c['id'] as num?)?.toInt();
-                            final name = c['name']?.toString() ?? '';
-                            return FilterChip(
-                              label: Text(name),
-                              selected: _searchCategoryId == id,
-                              onSelected: (selected) {
-                                setModalState(() {
-                                  _searchCategoryId = selected ? id : null;
-                                });
-                                setState(() {
-                                  _searchCategoryId = selected ? id : null;
-                                });
-                              },
-                            );
-                          }),
-                        ],
-                      ),
-                    ),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Фильтры',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                   ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () {
-                          setModalState(() {
-                            _searchSort = null;
-                            _searchShowPopular = false;
-                            _searchShowHighRating = false;
-                            _searchShowBigDiscount = false;
-                            _searchShowInStock = false;
-                            _searchCategoryId = null;
-                          });
-                          setState(() {
-                            _searchSort = null;
-                            _searchShowPopular = false;
-                            _searchShowHighRating = false;
-                            _searchShowBigDiscount = false;
-                            _searchShowInStock = false;
-                            _searchCategoryId = null;
-                          });
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Сортировка',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      FilterChip(
+                        label: const Text('Дешевле'),
+                        selected: _searchSort == 'price_asc',
+                        onSelected: (v) {
+                          setModalState(
+                            () => _searchSort = v ? 'price_asc' : null,
+                          );
+                          setState(() => _searchSort = v ? 'price_asc' : null);
                         },
-                        child: const Text('Сбросить'),
                       ),
-                    ),
-                    const SizedBox(width: 8),
+                      FilterChip(
+                        label: const Text('Дороже'),
+                        selected: _searchSort == 'price_desc',
+                        onSelected: (v) {
+                          setModalState(
+                            () => _searchSort = v ? 'price_desc' : null,
+                          );
+                          setState(() => _searchSort = v ? 'price_desc' : null);
+                        },
+                      ),
+                      FilterChip(
+                        label: const Text('Рейтинг'),
+                        selected: _searchSort == 'rating',
+                        onSelected: (v) {
+                          setModalState(
+                            () => _searchSort = v ? 'rating' : null,
+                          );
+                          setState(() => _searchSort = v ? 'rating' : null);
+                        },
+                      ),
+                      FilterChip(
+                        label: const Text('Новинки'),
+                        selected: _searchSort == 'newest',
+                        onSelected: (v) {
+                          setModalState(
+                            () => _searchSort = v ? 'newest' : null,
+                          );
+                          setState(() => _searchSort = v ? 'newest' : null);
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Показать только',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      FilterChip(
+                        label: const Text('Популярное'),
+                        selected: _searchShowPopular,
+                        onSelected: (v) {
+                          setModalState(() => _searchShowPopular = v);
+                          setState(() => _searchShowPopular = v);
+                        },
+                      ),
+                      FilterChip(
+                        label: const Text('Высокий рейтинг'),
+                        selected: _searchShowHighRating,
+                        onSelected: (v) {
+                          setModalState(() => _searchShowHighRating = v);
+                          setState(() => _searchShowHighRating = v);
+                        },
+                      ),
+                      FilterChip(
+                        label: const Text('Большие скидки'),
+                        selected: _searchShowBigDiscount,
+                        onSelected: (v) {
+                          setModalState(() => _searchShowBigDiscount = v);
+                          setState(() => _searchShowBigDiscount = v);
+                        },
+                      ),
+                      FilterChip(
+                        label: const Text('Только в наличии'),
+                        selected: _searchShowInStock,
+                        onSelected: (v) {
+                          setModalState(() => _searchShowInStock = v);
+                          setState(() => _searchShowInStock = v);
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Категория',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  if (_loadingCategories)
+                    const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: CircularProgressIndicator(),
+                    )
+                  else
                     Expanded(
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Применить'),
+                      child: SingleChildScrollView(
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          children: [
+                            FilterChip(
+                              label: const Text('Все категории'),
+                              selected: _searchCategoryId == null,
+                              onSelected: (selected) {
+                                if (selected) {
+                                  setModalState(() => _searchCategoryId = null);
+                                  setState(() => _searchCategoryId = null);
+                                }
+                              },
+                            ),
+                            ..._categories.map((c) {
+                              final id = (c['id'] as num?)?.toInt();
+                              final name = c['name']?.toString() ?? '';
+                              return FilterChip(
+                                label: Text(name),
+                                selected: _searchCategoryId == id,
+                                onSelected: (selected) {
+                                  setModalState(() {
+                                    _searchCategoryId = selected ? id : null;
+                                  });
+                                  setState(() {
+                                    _searchCategoryId = selected ? id : null;
+                                  });
+                                },
+                              );
+                            }),
+                          ],
+                        ),
                       ),
                     ),
-                  ],
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            setModalState(() {
+                              _searchSort = null;
+                              _searchShowPopular = false;
+                              _searchShowHighRating = false;
+                              _searchShowBigDiscount = false;
+                              _searchShowInStock = false;
+                              _searchCategoryId = null;
+                            });
+                            setState(() {
+                              _searchSort = null;
+                              _searchShowPopular = false;
+                              _searchShowHighRating = false;
+                              _searchShowBigDiscount = false;
+                              _searchShowInStock = false;
+                              _searchCategoryId = null;
+                            });
+                          },
+                          child: const Text('Сбросить'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Применить'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-            )
           );
         },
       ),
@@ -279,9 +285,7 @@ class _FeedScreenState extends State<FeedScreen> {
         size: 24,
         color: hasText ? Colors.black : Colors.grey.shade600,
       ),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
         borderSide: BorderSide(color: borderColor, width: 1.4),
@@ -337,8 +341,9 @@ class _FeedScreenState extends State<FeedScreen> {
                   focusNode: _searchFocus,
                   cursorColor: _searchAccentColor,
                   style: const TextStyle(fontSize: 16),
-                  decoration:
-                      _searchInputDecoration(hintText: 'Поиск товаров...'),
+                  decoration: _searchInputDecoration(
+                    hintText: 'Поиск товаров...',
+                  ),
                 ),
               ),
               SizedBox(
@@ -372,6 +377,13 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 
   Widget _buildFeedHome() {
+    if (_debugForceOffline) {
+      return ServerErrorView(
+        message: 'Нет подключения к интернету',
+        onRetry: () => setState(() {}),
+      );
+    }
+
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
       children: [
@@ -405,18 +417,18 @@ class _FeedScreenState extends State<FeedScreen> {
         _searchQuery.isNotEmpty
             ? ApiService.searchProducts(_searchQuery)
             : (_searchSort != null ||
-                      _searchShowPopular ||
-                      _searchShowHighRating ||
-                      _searchShowBigDiscount ||
-                      _searchCategoryId != null)
-                  ? ApiService.fetchFilteredProducts(
-                      sortBy: _searchSort,
-                      popular: _searchShowPopular,
-                      highRating: _searchShowHighRating,
-                      bigDiscount: _searchShowBigDiscount,
-                      categoryId: _searchCategoryId,
-                    )
-                  : ApiService.fetchProducts(),
+                  _searchShowPopular ||
+                  _searchShowHighRating ||
+                  _searchShowBigDiscount ||
+                  _searchCategoryId != null)
+            ? ApiService.fetchFilteredProducts(
+                sortBy: _searchSort,
+                popular: _searchShowPopular,
+                highRating: _searchShowHighRating,
+                bigDiscount: _searchShowBigDiscount,
+                categoryId: _searchCategoryId,
+              )
+            : ApiService.fetchProducts(),
         if (isLoggedIn)
           ApiService.fetchFavoriteIds().catchError((_) => <int>[])
         else
@@ -446,12 +458,14 @@ class _FeedScreenState extends State<FeedScreen> {
         }
         var sortedProducts = List<Product>.from(products);
         if (_searchShowPopular) {
-          sortedProducts =
-              sortedProducts.where((p) => p.isPopular == true).toList();
+          sortedProducts = sortedProducts
+              .where((p) => p.isPopular == true)
+              .toList();
         }
         if (_searchShowHighRating) {
-          sortedProducts =
-              sortedProducts.where((p) => p.evaluation >= 4.0).toList();
+          sortedProducts = sortedProducts
+              .where((p) => p.evaluation >= 4.0)
+              .toList();
         }
         if (_searchShowBigDiscount) {
           sortedProducts = sortedProducts

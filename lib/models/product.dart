@@ -5,8 +5,6 @@ class Product {
   final int? categoryId;
   final double price;
   final String imageUrl;
-  // В UI используем это как "старая цена" (зачёркнутая).
-  // На сервере поле `discount` похоже на % скидки, поэтому тут храним рассчитанную старую цену.
   final double discount;
   final int countFeedbacks;
   final double evaluation;

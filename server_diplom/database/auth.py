@@ -343,11 +343,11 @@ def get_all_products():
                     "brand": p.brand.name if p.brand else "",
                     "category_id": p.category_id,
                     "rating": p.rating,
-                    "price": float(p.price),
-                    "discount": float(p.discount),
+                    "price": float(p.price),  # type: ignore
+                    "discount": float(p.discount),  # type: ignore
                     "image_url": main_img.image_url if main_img else "",
                     "count_feedbacks": p.reviews_count,
-                    "evaluation": float(p.rating),
+                    "evaluation": float(p.rating),  # type: ignore
                     "quantity": p.quantity,
                     "is_new": p.is_new,
                     "is_popular": p.is_popular,

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:mobile_app/models/product.dart';
 import 'package:mobile_app/models/cart_item.dart';
@@ -12,7 +13,7 @@ class AuthTokens {
 }
 
 class ApiService {
-  static const String baseUrl = 'https://cheekily-coherent-newfoundland.cloudpub.ru';
+  static const String baseUrl = 'http://192.168.1.25:8000';
 
   static String? _accessToken;
 
@@ -29,6 +30,18 @@ class ApiService {
       headers['Authorization'] = 'Bearer $_accessToken';
     }
     return headers;
+  }
+
+  static Future<http.Response> _safeRequest(
+    Future<http.Response> Function() request,
+  ) async {
+    try {
+      return await request();
+    } on SocketException {
+      throw Exception('Нет подключения к интернету');
+    } on HttpException {
+      throw Exception('Ошибка сети. Проверьте подключение.');
+    }
   }
 
   static Future<void> _refreshTokensIfNeeded(http.Response response) async {
@@ -70,17 +83,21 @@ class ApiService {
 
   static Future<http.Response> _authorizedGet(String path) async {
     final uri = Uri.parse('$baseUrl$path');
-    var response = await http.get(uri, headers: _buildAuthHeaders());
+    var response = await _safeRequest(
+      () => http.get(uri, headers: _buildAuthHeaders()),
+    );
     if (response.statusCode == 401) {
       await _refreshTokensIfNeeded(response);
-      response = await http.get(uri, headers: _buildAuthHeaders());
+      response = await _safeRequest(
+        () => http.get(uri, headers: _buildAuthHeaders()),
+      );
     }
     return response;
   }
 
   static Future<http.Response> _publicGet(String path) async {
     final uri = Uri.parse('$baseUrl$path');
-    return await http.get(uri);
+    return await _safeRequest(() => http.get(uri));
   }
 
   static Future<http.Response> _authorizedPost(
@@ -93,10 +110,14 @@ class ApiService {
       ..._buildAuthHeaders(),
       if (headers != null) ...headers,
     };
-    var response = await http.post(uri, headers: mergedHeaders, body: body);
+    var response = await _safeRequest(
+      () => http.post(uri, headers: mergedHeaders, body: body),
+    );
     if (response.statusCode == 401) {
       await _refreshTokensIfNeeded(response);
-      response = await http.post(uri, headers: mergedHeaders, body: body);
+      response = await _safeRequest(
+        () => http.post(uri, headers: mergedHeaders, body: body),
+      );
     }
     return response;
   }
@@ -111,10 +132,14 @@ class ApiService {
       ..._buildAuthHeaders(),
       if (headers != null) ...headers,
     };
-    var response = await http.patch(uri, headers: mergedHeaders, body: body);
+    var response = await _safeRequest(
+      () => http.patch(uri, headers: mergedHeaders, body: body),
+    );
     if (response.statusCode == 401) {
       await _refreshTokensIfNeeded(response);
-      response = await http.patch(uri, headers: mergedHeaders, body: body);
+      response = await _safeRequest(
+        () => http.patch(uri, headers: mergedHeaders, body: body),
+      );
     }
     return response;
   }
@@ -133,10 +158,12 @@ class ApiService {
                 json['image_url'] = _normalizeImageUrl(rawUrl);
               }
             }
+
             return Product.fromJson(json);
           })
           .toList()
           .cast<Product>();
+
       // ignore: avoid_print
       print('Товары успешно получены: ${products.length}');
       return products;
@@ -608,6 +635,10 @@ class ApiService {
       return Product.fromJson(json);
     }
 
+    if (response.statusCode == 404) {
+      throw Exception('Невозможно получить данные о товаре');
+    }
+
     throw Exception('Ошибка загрузки деталей товара (${response.statusCode})');
   }
 
@@ -684,9 +715,7 @@ class ApiService {
       return jsonDecode(response.body) as Map<String, dynamic>;
     }
     if (response.statusCode == 401) {
-      throw Exception(
-        'Для загрузки профиля необходимо войти в профиль',
-      );
+      throw Exception('Для загрузки профиля необходимо войти в профиль');
     }
     throw Exception('Профиль (${response.statusCode})');
   }
@@ -698,10 +727,7 @@ class ApiService {
     final response = await _authorizedPatch(
       '/auth/me',
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'name': ?name,
-        'phone': ?phone,
-      }),
+      body: jsonEncode({'name': ?name, 'phone': ?phone}),
     );
     if (response.statusCode == 200) {
       return jsonDecode(response.body) as Map<String, dynamic>;

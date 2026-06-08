@@ -23,6 +23,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   List<Product> similarProducts = [];
   bool isLoading = true;
   String? errorMessage;
+  final bool _debugForceMissingProduct =
+      false; // Временно показываем ошибку отсутствия товара
   double _newReviewRating = 0;
   String _newReviewComment = '';
 
@@ -94,6 +96,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   Future<void> _loadProductDetails() async {
     try {
+      if (_debugForceMissingProduct) {
+        throw Exception('Невозможно получить данные о товаре');
+      }
+
       final details = await ApiService.fetchProductDetails(widget.product.id);
       final reviewsData = await ApiService.fetchProductReviews(
         widget.product.id,
@@ -128,6 +134,30 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         backgroundColor: Colors.white,
         appBar: AppBar(title: const Text('Загрузка...')),
         body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (errorMessage != null) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          title: Text(
+            widget.product.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        body: ServerErrorView(
+          message: errorMessage!,
+          onRetry: () {
+            setState(() {
+              isLoading = true;
+              errorMessage = null;
+            });
+            _loadProductDetails();
+          },
+          retryLabel: 'Повторить',
+        ),
       );
     }
 
@@ -188,7 +218,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           }
                           if (!ApiService.isAuthorized) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Чтобы добавить товар в корзину нужно войти в профиль')),
+                              const SnackBar(
+                                content: Text(
+                                  'Чтобы добавить товар в корзину нужно войти в профиль',
+                                ),
+                              ),
                             );
                             return;
                           }
@@ -325,7 +359,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     return Padding(
                       padding: const EdgeInsets.all(12),
                       child: url.trim().isEmpty
-                          ? const Icon(Icons.photo, size: 96, color: Colors.grey)
+                          ? const Icon(
+                              Icons.photo,
+                              size: 96,
+                              color: Colors.grey,
+                            )
                           : Image.network(
                               url,
                               fit: BoxFit.contain,
@@ -1096,9 +1134,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 } catch (e) {
                   if (!currentContext.mounted) return;
                   Navigator.of(currentContext).pop();
-                  ScaffoldMessenger.of(currentContext).showSnackBar(
-                    SnackBar(content: Text(toUserMessage(e))),
-                  );
+                  ScaffoldMessenger.of(
+                    currentContext,
+                  ).showSnackBar(SnackBar(content: Text(toUserMessage(e))));
                 }
               },
               child: const Text('Отправить'),
