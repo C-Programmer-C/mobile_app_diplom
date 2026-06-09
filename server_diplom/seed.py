@@ -1,12 +1,11 @@
 # seed.py
+import sys
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-from sqlalchemy import create_engine, func
-from sqlalchemy.orm import sessionmaker
-
 from config import settings
 from database.auth import hash_password
+from database.base import Base
 from models.brands import Brand
 from models.cart import Cart
 from models.category import Category
@@ -21,6 +20,8 @@ from models.product_images import ProductImages
 from models.review import Reviews
 from models.statuses import OrderStatusEnum, Status
 from models.user import User
+from sqlalchemy import create_engine, func
+from sqlalchemy.orm import sessionmaker
 
 engine = create_engine(settings.DATABASE_URL)
 
@@ -44,6 +45,12 @@ def reset_tables() -> None:
     session.query(Status).delete()
     session.query(User).delete()
     session.commit()
+
+
+def delete_tables() -> None:
+    """Drop all tables defined in SQLAlchemy metadata."""
+    Base.metadata.drop_all(bind=engine)
+    print("All tables dropped.")
 
 
 def seed_statuses() -> list[Status]:
@@ -264,6 +271,86 @@ def seed_products(
             "8.00",
             "telephone12.jpg",
         ),
+        (
+            "Galaxy Pulse 9",
+            smartphones.id,
+            samsung.id,
+            "26999.99",
+            "12.00",
+            "telephone1.jpg",
+        ),
+        (
+            "iFruit Nano 11",
+            smartphones.id,
+            apple.id,
+            "55999.99",
+            "5.50",
+            "telephone3.jpg",
+        ),
+        (
+            "Redmi Flash 13",
+            smartphones.id,
+            xiaomi.id,
+            "21999.99",
+            "26.00",
+            "telephone4.jpg",
+        ),
+        (
+            "Moto Air 9",
+            smartphones.id,
+            motorola.id,
+            "37999.99",
+            "28.00",
+            "telephone6.jpg",
+        ),
+        (
+            "Samsung Zen 7",
+            smartphones.id,
+            samsung.id,
+            "24999.99",
+            "9.00",
+            "telephone7.jpg",
+        ),
+        (
+            "Xiaomi Air 14",
+            smartphones.id,
+            xiaomi.id,
+            "30999.99",
+            "15.00",
+            "telephone8.jpg",
+        ),
+        (
+            "Tecno Beat 5",
+            smartphones.id,
+            tecno.id,
+            "14999.99",
+            "18.00",
+            "telephone9.jpg",
+        ),
+        (
+            "iFruit Edge 12",
+            smartphones.id,
+            apple.id,
+            "75999.99",
+            "4.50",
+            "telephone11.jpg",
+        ),
+        (
+            "Galaxy Core S",
+            smartphones.id,
+            samsung.id,
+            "27999.99",
+            "7.00",
+            "telephone12.jpg",
+        ),
+        (
+            "Redmi Max 14",
+            smartphones.id,
+            xiaomi.id,
+            "25999.99",
+            "20.00",
+            "telephone1.jpg",
+        ),
         # Ноутбуки
         ("UltraBook 15", laptops.id, tecno.id, "89999.99", "12.00", "laptop1.jpg"),
         ("MacLite Air 13", laptops.id, apple.id, "109999.99", "3.00", "laptop2.jpg"),
@@ -284,6 +371,25 @@ def seed_products(
         ("Moto Office 15", laptops.id, motorola.id, "64999.99", "9.50", "laptop10.jpg"),
         ("Redmi ZenBook", laptops.id, xiaomi.id, "81999.99", "10.00", "laptop11.jpg"),
         ("Tecno PowerBook", laptops.id, tecno.id, "58999.99", "12.00", "laptop12.jpg"),
+        ("MacLite Pro 15", laptops.id, apple.id, "129999.99", "4.00", "laptop1.jpg"),
+        ("Redmi Air 13", laptops.id, xiaomi.id, "74999.99", "9.50", "laptop2.jpg"),
+        (
+            "Galaxy Book Lite",
+            laptops.id,
+            samsung.id,
+            "67999.99",
+            "11.00",
+            "laptop3.jpg",
+        ),
+        ("Moto Flex 13", laptops.id, motorola.id, "56999.99", "8.50", "laptop4.jpg"),
+        (
+            "Xiaomi Creator 14",
+            laptops.id,
+            xiaomi.id,
+            "89999.99",
+            "10.00",
+            "laptop5.jpg",
+        ),
         # Планшеты
         ("Tab Plus 11", tablets.id, samsung.id, "29999.99", "8.00", "tablet1.jpg"),
         ("iFruit Pad Air", tablets.id, apple.id, "55999.99", "4.00", "tablet2.jpg"),
@@ -293,6 +399,13 @@ def seed_products(
         ("Tecno Tab Neo", tablets.id, tecno.id, "21999.99", "9.00", "tablet6.jpg"),
         ("iFruit Pad Mini", tablets.id, apple.id, "49999.99", "3.00", "tablet7.jpg"),
         ("Galaxy Tab Ultra", tablets.id, samsung.id, "65999.99", "5.00", "tablet8.jpg"),
+        ("Tab Plus 10", tablets.id, samsung.id, "25999.99", "8.50", "table9.jpg"),
+        ("iFruit Pad Go", tablets.id, apple.id, "42999.99", "5.50", "tablet1.jpg"),
+        ("Redmi Pad Lite", tablets.id, xiaomi.id, "23999.99", "11.00", "tablet2.jpg"),
+        ("Galaxy Tab Go", tablets.id, samsung.id, "27999.99", "6.00", "tablet3.jpg"),
+        ("Moto Tab Lite", tablets.id, motorola.id, "26999.99", "8.50", "tablet4.jpg"),
+        ("Tecno Tab Air", tablets.id, tecno.id, "21999.99", "9.50", "tablet5.jpg"),
+        ("iFruit Pad Max", tablets.id, apple.id, "49999.99", "4.00", "tablet6.jpg"),
     ]
 
     items: list[Product] = []
@@ -573,4 +686,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) > 1 and sys.argv[1] == "delete":
+        delete_tables()
+    else:
+        main()
