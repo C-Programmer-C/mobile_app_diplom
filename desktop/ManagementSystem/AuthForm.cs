@@ -62,7 +62,7 @@ namespace ManagementSystem
         {
             using (var client = new HttpClient())
             {
-                client.BaseAddress = new Uri("https://cheekily-coherent-newfoundland.cloudpub.ru");
+                client.BaseAddress = new Uri("http://localhost:8000");
                 var serializer = new JavaScriptSerializer();
                 var login = textBox1.Text.Trim();
                 var password = textBox2.Text;

@@ -3,6 +3,18 @@
   "WorkspaceRootPath": "D:\\mobile\\mobile_app_diplom\\desktop\\ManagementSystem\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{D6074D66-BF1A-4F88-9988-27E10CE9DF25}|ManagementSystem.csproj|D:\\mobile\\mobile_app_diplom\\desktop\\ManagementSystem\\authform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{D6074D66-BF1A-4F88-9988-27E10CE9DF25}|ManagementSystem.csproj|solutionrelative:authform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{D6074D66-BF1A-4F88-9988-27E10CE9DF25}|ManagementSystem.csproj|D:\\mobile\\mobile_app_diplom\\desktop\\ManagementSystem\\authform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
+      "RelativeMoniker": "D:0:0:{D6074D66-BF1A-4F88-9988-27E10CE9DF25}|ManagementSystem.csproj|solutionrelative:authform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{D6074D66-BF1A-4F88-9988-27E10CE9DF25}|ManagementSystem.csproj|D:\\mobile\\mobile_app_diplom\\desktop\\ManagementSystem\\apiconfig.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{D6074D66-BF1A-4F88-9988-27E10CE9DF25}|ManagementSystem.csproj|solutionrelative:apiconfig.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{D6074D66-BF1A-4F88-9988-27E10CE9DF25}|ManagementSystem.csproj|d:\\mobile\\mobile_app_diplom\\desktop\\managementsystem\\listviews\\productsform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{D6074D66-BF1A-4F88-9988-27E10CE9DF25}|ManagementSystem.csproj|solutionrelative:listviews\\productsform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
@@ -17,18 +29,6 @@
     {
       "AbsoluteMoniker": "D:0:0:{D6074D66-BF1A-4F88-9988-27E10CE9DF25}|ManagementSystem.csproj|D:\\mobile\\mobile_app_diplom\\desktop\\ManagementSystem\\detailviews\\orderform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
       "RelativeMoniker": "D:0:0:{D6074D66-BF1A-4F88-9988-27E10CE9DF25}|ManagementSystem.csproj|solutionrelative:detailviews\\orderform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{D6074D66-BF1A-4F88-9988-27E10CE9DF25}|ManagementSystem.csproj|D:\\mobile\\mobile_app_diplom\\desktop\\ManagementSystem\\authform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{D6074D66-BF1A-4F88-9988-27E10CE9DF25}|ManagementSystem.csproj|solutionrelative:authform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{D6074D66-BF1A-4F88-9988-27E10CE9DF25}|ManagementSystem.csproj|D:\\mobile\\mobile_app_diplom\\desktop\\ManagementSystem\\authform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
-      "RelativeMoniker": "D:0:0:{D6074D66-BF1A-4F88-9988-27E10CE9DF25}|ManagementSystem.csproj|solutionrelative:authform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{D6074D66-BF1A-4F88-9988-27E10CE9DF25}|ManagementSystem.csproj|D:\\mobile\\mobile_app_diplom\\desktop\\ManagementSystem\\apiconfig.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{D6074D66-BF1A-4F88-9988-27E10CE9DF25}|ManagementSystem.csproj|solutionrelative:apiconfig.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{D6074D66-BF1A-4F88-9988-27E10CE9DF25}|ManagementSystem.csproj|D:\\mobile\\mobile_app_diplom\\desktop\\ManagementSystem\\detailviews\\userform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
@@ -86,7 +86,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 20,
+          "SelectedChildIndex": 30,
           "Children": [
             {
               "$type": "Bookmark",
@@ -177,7 +177,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 6,
               "Title": "OrderForm.cs [\u041A\u043E\u043D\u0441\u0442\u0440\u0443\u043A\u0442\u043E\u0440]",
               "DocumentMoniker": "D:\\mobile\\mobile_app_diplom\\desktop\\ManagementSystem\\DetailViews\\OrderForm.cs",
               "RelativeDocumentMoniker": "DetailViews\\OrderForm.cs",
@@ -199,15 +199,16 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 2,
               "Title": "ApiConfig.cs",
               "DocumentMoniker": "D:\\mobile\\mobile_app_diplom\\desktop\\ManagementSystem\\ApiConfig.cs",
               "RelativeDocumentMoniker": "ApiConfig.cs",
               "ToolTip": "D:\\mobile\\mobile_app_diplom\\desktop\\ManagementSystem\\ApiConfig.cs",
               "RelativeToolTip": "ApiConfig.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAQAAAAiAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAQAAAA8AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-04-14T14:14:42.92Z"
+              "WhenOpened": "2026-04-14T14:14:42.92Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -223,13 +224,13 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 3,
               "Title": "ProductsForm.cs",
               "DocumentMoniker": "D:\\mobile\\mobile_app_diplom\\desktop\\ManagementSystem\\ListViews\\ProductsForm.cs",
               "RelativeDocumentMoniker": "ListViews\\ProductsForm.cs",
               "ToolTip": "D:\\mobile\\mobile_app_diplom\\desktop\\ManagementSystem\\ListViews\\ProductsForm.cs",
               "RelativeToolTip": "ListViews\\ProductsForm.cs",
-              "ViewState": "AgIAALIAAAAAAAAAAAAnwLkAAAAVAAAAAAAAAA==",
+              "ViewState": "AgIAAJkAAAAAAAAAAAAmwK4AAAAMAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-04-14T11:34:08.051Z",
               "EditorCaption": ""
@@ -281,7 +282,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 5,
               "Title": "OrdersForm.cs [\u041A\u043E\u043D\u0441\u0442\u0440\u0443\u043A\u0442\u043E\u0440]",
               "DocumentMoniker": "D:\\mobile\\mobile_app_diplom\\desktop\\ManagementSystem\\ListViews\\OrdersForm.cs",
               "RelativeDocumentMoniker": "ListViews\\OrdersForm.cs",
@@ -303,14 +304,15 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 4,
               "Title": "ProductsForm.cs [\u041A\u043E\u043D\u0441\u0442\u0440\u0443\u043A\u0442\u043E\u0440]",
               "DocumentMoniker": "D:\\mobile\\mobile_app_diplom\\desktop\\ManagementSystem\\ListViews\\ProductsForm.cs",
               "RelativeDocumentMoniker": "ListViews\\ProductsForm.cs",
               "ToolTip": "D:\\mobile\\mobile_app_diplom\\desktop\\ManagementSystem\\ListViews\\ProductsForm.cs [\u041A\u043E\u043D\u0441\u0442\u0440\u0443\u043A\u0442\u043E\u0440]",
               "RelativeToolTip": "ListViews\\ProductsForm.cs [\u041A\u043E\u043D\u0441\u0442\u0440\u0443\u043A\u0442\u043E\u0440]",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-04-14T11:30:00.093Z"
+              "WhenOpened": "2026-04-14T11:30:00.093Z",
+              "EditorCaption": " [\u041A\u043E\u043D\u0441\u0442\u0440\u0443\u043A\u0442\u043E\u0440]"
             },
             {
               "$type": "Document",
@@ -337,26 +339,28 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 0,
               "Title": "AuthForm.cs",
               "DocumentMoniker": "D:\\mobile\\mobile_app_diplom\\desktop\\ManagementSystem\\AuthForm.cs",
               "RelativeDocumentMoniker": "AuthForm.cs",
               "ToolTip": "D:\\mobile\\mobile_app_diplom\\desktop\\ManagementSystem\\AuthForm.cs",
               "RelativeToolTip": "AuthForm.cs",
-              "ViewState": "AgIAADMAAAAAAAAAAAAewEAAAABgAAAAAAAAAA==",
+              "ViewState": "AgIAADMAAAAAAAAAAAAewEAAAABDAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-04-14T10:13:15.13Z"
+              "WhenOpened": "2026-04-14T10:13:15.13Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 1,
               "Title": "AuthForm.cs [\u041A\u043E\u043D\u0441\u0442\u0440\u0443\u043A\u0442\u043E\u0440]",
               "DocumentMoniker": "D:\\mobile\\mobile_app_diplom\\desktop\\ManagementSystem\\AuthForm.cs",
               "RelativeDocumentMoniker": "AuthForm.cs",
               "ToolTip": "D:\\mobile\\mobile_app_diplom\\desktop\\ManagementSystem\\AuthForm.cs [\u041A\u043E\u043D\u0441\u0442\u0440\u0443\u043A\u0442\u043E\u0440]",
               "RelativeToolTip": "AuthForm.cs [\u041A\u043E\u043D\u0441\u0442\u0440\u0443\u043A\u0442\u043E\u0440]",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-04-12T16:35:22.729Z"
+              "WhenOpened": "2026-04-12T16:35:22.729Z",
+              "EditorCaption": " [\u041A\u043E\u043D\u0441\u0442\u0440\u0443\u043A\u0442\u043E\u0440]"
             }
           ]
         },
